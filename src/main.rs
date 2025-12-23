@@ -15,5 +15,4 @@ fn main() {
     let pmx = Pmx::open(&path).unwrap();
 
     dbg!(&pmx);
-    println!("{}", pmx.header().name())
 }

@@ -106,6 +106,10 @@ impl TryFrom<u8> for TextEncoding {
 /// A PMX text string, encoded in either UTF18LE or UTF8, specified by the file's global variables.
 pub struct PmxText {
     // TODO(mate): keep the rawy bytes for now, but maybe we can drop them later
+    #[allow(
+        dead_code,
+        reason = "might be useful for debugging and serialization later"
+    )]
     raw_bytes: Vec<u8>,
     // TODO(mate): this is also sort of useless as its in the file header and always the same for every text anyways
     encoding: TextEncoding,

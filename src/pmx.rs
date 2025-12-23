@@ -8,7 +8,7 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    material,
+    bone, material,
     parser::Parser,
     surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
@@ -33,6 +33,8 @@ pub enum Error {
     Texture(#[from] texture::Error),
     #[error("Material error: {0}")]
     Material(#[from] material::Error),
+    #[error("Bone error: {0}")]
+    Bone(#[from] bone::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -51,6 +53,7 @@ pub struct Pmx {
     surfaces: surface::Surfaces,
     textures: texture::Textures,
     materials: material::Materials,
+    bones: bone::Bones,
 }
 
 impl fmt::Debug for Pmx {
@@ -72,6 +75,10 @@ impl fmt::Debug for Pmx {
             .field("materials", &format!(
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.materials.len()
+            ))
+            .field("bones", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.bones.len()
             ))
             .finish()
     }
@@ -101,12 +108,15 @@ impl Pmx {
 
         let materials = parser.parse()?;
 
+        let bones = parser.parse()?;
+
         Ok(Pmx {
             header,
             vertices,
             surfaces,
             materials,
             textures,
+            bones,
         })
     }
 
@@ -183,6 +193,22 @@ impl Pmx {
     pub fn materials(&self) -> &material::Materials {
         &self.materials
     }
+
+    /// Get the PMX file bones.
+    ///
+    /// A bone is a part of the skeletal structure used for animating the 3D model, allowing for complex movements and deformations.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for bone in pmx.bones().iter() {
+    ///   println!("Bone name: {}", bone.name().universal().as_str());
+    /// }
+    pub fn bones(&self) -> &bone::Bones {
+        &self.bones
+    }
 }
 
 #[derive(Debug)]
@@ -222,6 +248,7 @@ pub struct Globals {
     pub(crate) morph_idx_size: u8,
     pub(crate) rb_idx_size: u8,
     /// Store additional fields here that we don't know the specific purpose of right now.
+    #[allow(dead_code, reason = "we don't have a use for these yet")]
     pub(crate) additional: Option<Vec<u8>>,
 }
 

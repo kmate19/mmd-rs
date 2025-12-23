@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 #[cfg(not(feature = "math_glam"))]
 pub type Vec2 = [f32; 2];
 #[cfg(not(feature = "math_glam"))]
