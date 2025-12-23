@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use sermmde::pmx::Pmx;
+use mmd_rs::pmx::Pmx;
 
 fn main() {
     let args = std::env::args().collect::<Vec<String>>();
