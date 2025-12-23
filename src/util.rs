@@ -34,3 +34,23 @@ pub(crate) fn from_utf16le(v: &[u8]) -> Result<String> {
 
     Ok(res)
 }
+
+// Helper macro to read an array of f32s from little-endian bytes
+// this cannot be a function because the size needs to be a const generic parameter
+// and const generics do not support expressions yet
+macro_rules! f32_array_from_le_bytes {
+    ($size:expr,$reader:ident) => {{
+        const SIZE_FLOATS: usize = std::mem::size_of::<f32>();
+        let mut bytes = [0; $size * SIZE_FLOATS];
+
+        $reader.read_exact(&mut bytes)?;
+
+        let chunks = bytes.as_chunks::<SIZE_FLOATS>().0;
+
+        let floats: [f32; $size] = std::array::from_fn(|i| f32::from_le_bytes(chunks[i]));
+
+        floats
+    }};
+}
+
+pub(crate) use f32_array_from_le_bytes;

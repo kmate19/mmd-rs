@@ -11,7 +11,7 @@ use crate::{
     material,
     parser::Parser,
     surface, texture,
-    types::{self, PmxText, TextEncoding},
+    types::{self, PmxTextGroup, TextEncoding},
     vertex,
 };
 
@@ -19,12 +19,12 @@ use crate::{
 pub enum Error {
     #[error("File had an invalid tag, did you input the correct file?")]
     InvalidTag,
+    #[error("Invalid global variable amount, must be at least 8")]
+    InvalidGlobalCount,
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Error parsing vertex: {0}")]
-    VertexError(#[from] vertex::Error),
-    #[error("Invalid global variable amount, must be at least 8")]
-    InvalidGlobalCount,
+    Vertex(#[from] vertex::Error),
     #[error("PMX type error: {0}")]
     Type(#[from] types::Error),
     #[error("Surface error: {0}")]
@@ -35,7 +35,13 @@ pub enum Error {
     Material(#[from] material::Error),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
+type Result<T> = std::result::Result<T, Error>;
+
+pub use material::Error as MaterialError;
+pub use surface::Error as SurfaceError;
+pub use texture::Error as TextureError;
+pub use types::Error as TypeError;
+pub use vertex::Error as VertexError;
 
 pub struct Pmx {
     header: Header,
@@ -70,21 +76,19 @@ impl fmt::Debug for Pmx {
 }
 
 impl Pmx {
-    pub fn open(path: &Path) -> Result<Self> {
+    pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let fh = std::fs::File::open(path)?;
         let reader = BufReader::new(fh);
         let mut parser = Parser::new(reader);
 
         let header = parser.parse_header()?;
 
-        let vertices = parser.parse::<vertex::Vertices>()?;
+        let vertices = parser.parse()?;
 
-        let surfaces = parser.parse::<surface::Surfaces>()?;
-        let textures = parser.parse::<texture::Textures>()?;
+        let surfaces = parser.parse()?;
+        let textures = parser.parse()?;
 
-        let materials = parser.parse::<material::Materials>()?;
-
-        dbg!(&materials);
+        let materials = parser.parse()?;
 
         Ok(Pmx {
             header,
@@ -94,26 +98,52 @@ impl Pmx {
             textures,
         })
     }
+
+    pub fn header(&self) -> &Header {
+        &self.header
+    }
+
+    pub fn vertices(&self) -> &vertex::Vertices {
+        &self.vertices
+    }
+
+    pub fn surfaces(&self) -> &surface::Surfaces {
+        &self.surfaces
+    }
+
+    pub fn textures(&self) -> &texture::Textures {
+        &self.textures
+    }
+
+    pub fn materials(&self) -> &material::Materials {
+        &self.materials
+    }
 }
 
 #[derive(Debug)]
 pub struct Header {
     pub(crate) version: f32,
     pub(crate) globals: Globals,
-    pub(crate) name: ModelName,
-    pub(crate) comment: Comment,
+    pub(crate) name: PmxTextGroup,
+    pub(crate) comment: PmxTextGroup,
 }
 
-#[derive(Debug)]
-pub struct ModelName {
-    pub local: PmxText,
-    pub universal: PmxText,
-}
+impl Header {
+    pub fn version(&self) -> f32 {
+        self.version
+    }
 
-#[derive(Debug)]
-pub struct Comment {
-    pub local: PmxText,
-    pub universal: PmxText,
+    pub fn globals(&self) -> &Globals {
+        &self.globals
+    }
+
+    pub fn name(&self) -> &PmxTextGroup {
+        &self.name
+    }
+
+    pub fn comment(&self) -> &PmxTextGroup {
+        &self.comment
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -131,7 +161,7 @@ pub struct Globals {
 }
 
 impl Globals {
-    pub(crate) fn parse(r: &mut impl Read) -> Result<Self> {
+    pub(crate) fn from_bytes(r: &mut impl Read) -> Result<Self> {
         let mut global_count = [0; 1];
 
         r.read_exact(&mut global_count)?;
@@ -162,5 +192,9 @@ impl Globals {
             rb_idx_size: globals[7],
             additional,
         })
+    }
+
+    pub fn encoding(&self) -> TextEncoding {
+        self.encoding
     }
 }

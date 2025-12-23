@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, slice::Iter};
 
 use thiserror::Error;
 
@@ -14,7 +14,7 @@ pub enum Error {
     NegativeSize,
     #[error(transparent)]
     Type(#[from] crate::types::Error),
-    #[error("IO error: {0}")]
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
@@ -47,9 +47,14 @@ impl PmxParseable for Surfaces {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let surf = parser.parse::<Surface>()?;
+            let surf = parser.parse()?;
             inner_vec.push(surf);
         }
+
+        debug_assert!(
+            inner_vec.len() == size,
+            "the parsed surface count does not match the expected size"
+        );
 
         Ok(Self {
             len: size,
@@ -60,15 +65,23 @@ impl PmxParseable for Surfaces {
 
 impl Surfaces {
     pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
+        self.len
+    }
+
+    pub fn iter(&self) -> Iter<'_, Surface> {
+        self.inner.iter()
     }
 }
 
 #[derive(Debug)]
 pub struct Surface {
     index: Index,
+}
+
+impl Surface {
+    pub fn as_value(&self) -> i32 {
+        self.index.value()
+    }
 }
 
 impl PmxParseable for Surface {

@@ -21,18 +21,18 @@ use crate::{
 /// Errors that can occur when dealing with PMX types.
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    Util(#[from] crate::util::Error),
     #[error("The length of the string was negative")]
     NegativeLength,
     #[error("Invalid text encoding")]
     InvalidTextEncoding,
-    #[error(transparent)]
-    FromUtf8(#[from] std::str::Utf8Error),
     #[error("Index size mismatch")]
     IndexSizeMismatch,
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Util(#[from] crate::util::Error),
+    #[error(transparent)]
+    FromUtf8(#[from] std::str::Utf8Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -112,6 +112,16 @@ pub struct PmxText {
     decoded: String,
 }
 
+impl PmxText {
+    pub fn encoding(&self) -> TextEncoding {
+        self.encoding
+    }
+
+    pub fn decoded(&self) -> &str {
+        &self.decoded
+    }
+}
+
 impl fmt::Debug for PmxText {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PmxText")
@@ -133,8 +143,6 @@ impl PmxParseable for PmxText {
     /// Reads a PMX text string from the given reader and an encoding.
     ///
     /// Returns an error if the length is negative or if there was an IO error.
-    ///
-    /// Decoding the string is lazy and done when `try_into_string` is called.
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let mut len = [0; 4];
 
@@ -173,6 +181,34 @@ impl PmxParseable for PmxText {
     }
 }
 
+/// A helper for a common pattern in pmx files of having local and universal version of text together
+#[derive(Debug)]
+pub struct PmxTextGroup {
+    local: PmxText,
+    universal: PmxText,
+}
+
+impl PmxParseable for PmxTextGroup {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
+        Ok(Self {
+            local: parser.parse()?,
+            universal: parser.parse()?,
+        })
+    }
+}
+
+impl PmxTextGroup {
+    pub fn local(&self) -> &PmxText {
+        &self.local
+    }
+
+    pub fn universal(&self) -> &PmxText {
+        &self.universal
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum IndexSize {
     Size1([u8; 1]),
@@ -201,7 +237,15 @@ pub struct Index {
 }
 
 impl Index {
-    pub fn create(reader: &mut impl Read, mut size: IndexSize, sign: bool) -> Result<Self> {
+    pub fn value(&self) -> i32 {
+        self.value
+    }
+
+    pub fn is_nil(&self) -> bool {
+        self.value == -1
+    }
+
+    pub(crate) fn create(reader: &mut impl Read, mut size: IndexSize, sign: bool) -> Result<Self> {
         // read data into the index
         match &mut size {
             IndexSize::Size1(raw) => reader.read_exact(raw)?,
@@ -229,38 +273,4 @@ impl Index {
 
         Ok(Self { size, value, sign })
     }
-
-    pub fn is_nil(&self) -> bool {
-        self.value == -1
-    }
 }
-
-#[cfg(not(feature = "math_glam"))]
-pub type Vec2 = [f32; 2];
-#[cfg(not(feature = "math_glam"))]
-pub type Vec3 = [f32; 3];
-#[cfg(not(feature = "math_glam"))]
-pub type Vec4 = [f32; 4];
-
-#[cfg(feature = "math_glam")]
-pub use glam::{Vec2, Vec3, Vec4};
-
-// Helper macro to read an array of f32s from little-endian bytes
-// this cannot be a function because the size needs to be a const generic parameter
-// and const generics do not support expressions yet
-macro_rules! f32_array_from_le_bytes {
-    ($size:expr,$reader:ident) => {{
-        const SIZE_FLOATS: usize = std::mem::size_of::<f32>();
-        let mut bytes = [0; $size * SIZE_FLOATS];
-
-        $reader.read_exact(&mut bytes)?;
-
-        let chunks = bytes.as_chunks::<SIZE_FLOATS>().0;
-
-        let floats: [f32; $size] = std::array::from_fn(|i| f32::from_le_bytes(chunks[i]));
-
-        floats
-    }};
-}
-
-pub(super) use f32_array_from_le_bytes;

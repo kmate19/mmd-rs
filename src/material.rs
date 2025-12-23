@@ -1,25 +1,28 @@
-use std::io::Read;
+use std::{io::Read, slice::Iter};
 
 use thiserror::Error;
+
+use crate::util::f32_array_from_le_bytes;
+use crate::{Vec3, Vec4};
 
 use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
-    types::{Flag, Index, PmxText, Vec3, Vec4, f32_array_from_le_bytes},
+    types::{Flag, Index, PmxText, PmxTextGroup},
 };
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("Negative size encountered where positive expected")]
     NegativeSize,
-    #[error(transparent)]
-    Type(#[from] crate::types::Error),
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
     #[error("Invalid blend mode value")]
     InvalidBlendMode,
     #[error("Invalid toon reference value")]
     InvalidToonRef,
+    #[error(transparent)]
+    Type(#[from] crate::types::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -51,9 +54,14 @@ impl PmxParseable for Materials {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let mat = parser.parse::<Material>()?;
+            let mat = parser.parse()?;
             inner_vec.push(mat);
         }
+
+        debug_assert!(
+            inner_vec.len() == size,
+            "the parsed material count does not match the expected size"
+        );
 
         Ok(Self {
             len: size,
@@ -64,15 +72,17 @@ impl PmxParseable for Materials {
 
 impl Materials {
     pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
+        self.len
+    }
+
+    pub fn iter(&self) -> Iter<'_, Material> {
+        self.inner.iter()
     }
 }
 
 #[derive(Debug)]
 pub struct Material {
-    name: Name,
+    name: PmxTextGroup,
     diffuse: Vec4,
     specular: Vec3,
     specular_strength: f32,
@@ -86,6 +96,161 @@ pub struct Material {
     toon: Toon,
     meta: PmxText,
     surface_count: i32,
+}
+
+impl PmxParseable for Material {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
+        let name = parser.parse()?;
+
+        let (diffuse, specular, specular_strength, ambient) = {
+            let reader = &mut parser.reader;
+
+            let diffuse: Vec4 = f32_array_from_le_bytes!(4, reader).into();
+            let specular: Vec3 = f32_array_from_le_bytes!(3, reader).into();
+
+            let specular_strength = {
+                let mut buf = [0; 4];
+                reader.read_exact(&mut buf)?;
+                f32::from_le_bytes(buf)
+            };
+
+            let ambient: Vec3 = f32_array_from_le_bytes!(3, reader).into();
+
+            (diffuse, specular, specular_strength, ambient)
+        };
+
+        let flags = parser.parse()?;
+
+        let (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon) = {
+            let reader = &mut parser.reader;
+
+            let edge_color: Vec4 = f32_array_from_le_bytes!(4, reader).into();
+
+            let edge_scale = {
+                let mut buf = [0; 4];
+                reader.read_exact(&mut buf)?;
+                f32::from_le_bytes(buf)
+            };
+
+            let tex_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
+
+            let env_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
+
+            let env_blend = {
+                let mut buf = [0; 1];
+                reader.read_exact(&mut buf)?;
+                EnvBlendMode::try_from(buf[0])?
+            };
+
+            // NOTE(mate): we dont store this on the struct since its only used to determine how to read the toon value
+            let toon_ref = {
+                let mut buf = [0; 1];
+                reader.read_exact(&mut buf)?;
+                ToonRef::try_from(buf[0])?
+            };
+
+            let toon = match toon_ref {
+                ToonRef::Texture => {
+                    let toon_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
+                    Toon::Texture(toon_idx)
+                }
+                ToonRef::Internal => {
+                    let mut buf = [0; 1];
+                    reader.read_exact(&mut buf)?;
+                    Toon::Internal(buf[0])
+                }
+            };
+
+            (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon)
+        };
+
+        let meta = parser.parse()?;
+
+        let reader = &mut parser.reader;
+
+        let surface_count = {
+            let mut buf = [0; 4];
+            reader.read_exact(&mut buf)?;
+            i32::from_le_bytes(buf)
+        };
+
+        Ok(Self {
+            name,
+            diffuse,
+            specular,
+            specular_strength,
+            ambient,
+            flags,
+            edge_color,
+            edge_scale,
+            tex_idx,
+            env_idx,
+            env_blend,
+            toon,
+            meta,
+            surface_count,
+        })
+    }
+}
+
+impl Material {
+    pub fn env_blend(&self) -> &EnvBlendMode {
+        &self.env_blend
+    }
+
+    pub fn name(&self) -> &PmxTextGroup {
+        &self.name
+    }
+
+    pub fn diffuse(&self) -> Vec4 {
+        self.diffuse
+    }
+
+    pub fn specular(&self) -> Vec3 {
+        self.specular
+    }
+
+    pub fn specular_strength(&self) -> f32 {
+        self.specular_strength
+    }
+
+    pub fn ambient(&self) -> Vec3 {
+        self.ambient
+    }
+
+    pub fn flags(&self) -> &Flag {
+        &self.flags
+    }
+
+    pub fn edge_color(&self) -> Vec4 {
+        self.edge_color
+    }
+
+    pub fn edge_scale(&self) -> f32 {
+        self.edge_scale
+    }
+
+    pub fn tex_idx(&self) -> &Index {
+        &self.tex_idx
+    }
+
+    pub fn env_idx(&self) -> &Index {
+        &self.env_idx
+    }
+
+    pub fn toon(&self) -> &Toon {
+        &self.toon
+    }
+
+    pub fn meta(&self) -> &PmxText {
+        &self.meta
+    }
+
+    pub fn surface_count(&self) -> i32 {
+        self.surface_count
+    }
 }
 
 #[derive(Debug)]
@@ -114,7 +279,7 @@ impl TryFrom<u8> for EnvBlendMode {
     }
 }
 
-pub enum ToonRef {
+enum ToonRef {
     Texture,
     Internal,
 }
@@ -140,110 +305,4 @@ impl TryFrom<u8> for ToonRef {
 pub enum Toon {
     Texture(Index),
     Internal(u8),
-}
-
-#[derive(Debug)]
-struct Name {
-    local: PmxText,
-    universal: PmxText,
-}
-
-impl PmxParseable for Material {
-    type Error = Error;
-
-    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
-        let name = {
-            let local = parser.parse::<PmxText>()?;
-            let universal = parser.parse::<PmxText>()?;
-            Name { local, universal }
-        };
-
-        let (diffuse, specular, specular_strength, ambient) = {
-            let reader = &mut parser.reader;
-
-            let diffuse: Vec4 = f32_array_from_le_bytes!(4, reader).into();
-            let specular: Vec3 = f32_array_from_le_bytes!(3, reader).into();
-
-            let specular_strength = {
-                let mut buf = [0; 4];
-                reader.read_exact(&mut buf)?;
-                f32::from_le_bytes(buf)
-            };
-
-            let ambient: Vec3 = f32_array_from_le_bytes!(3, reader).into();
-
-            (diffuse, specular, specular_strength, ambient)
-        };
-
-        let flags = parser.parse::<Flag>()?;
-
-        let (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon) = {
-            let reader = &mut parser.reader;
-
-            let edge_color: Vec4 = f32_array_from_le_bytes!(4, reader).into();
-
-            let edge_scale = {
-                let mut buf = [0; 4];
-                reader.read_exact(&mut buf)?;
-                f32::from_le_bytes(buf)
-            };
-
-            let tex_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
-
-            let env_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
-
-            let env_blend = {
-                let mut buf = [0; 1];
-                reader.read_exact(&mut buf)?;
-                EnvBlendMode::try_from(buf[0])?
-            };
-
-            let toon_ref = {
-                let mut buf = [0; 1];
-                reader.read_exact(&mut buf)?;
-                ToonRef::try_from(buf[0])?
-            };
-
-            let toon = match toon_ref {
-                ToonRef::Texture => {
-                    let toon_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
-                    Toon::Texture(toon_idx)
-                }
-                ToonRef::Internal => {
-                    let mut buf = [0; 1];
-                    reader.read_exact(&mut buf)?;
-                    Toon::Internal(buf[0])
-                }
-            };
-
-            (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon)
-        };
-
-        let meta = parser.parse::<PmxText>()?;
-
-        let reader = &mut parser.reader;
-
-        let surface_count = {
-            let mut buf = [0; 4];
-            reader.read_exact(&mut buf)?;
-            i32::from_le_bytes(buf)
-        };
-
-        Ok(Self {
-            name,
-            diffuse,
-            specular,
-            specular_strength,
-            ambient,
-            flags,
-            edge_color,
-            edge_scale,
-            tex_idx,
-            env_idx,
-            env_blend,
-            toon,
-            meta,
-            surface_count,
-        })
-    }
 }

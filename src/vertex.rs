@@ -1,25 +1,28 @@
-use std::io::Read;
+use std::{io::Read, slice::Iter};
 
 use thiserror::Error;
+
+use crate::{Vec2, Vec3, Vec4};
 
 use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
-    types::{Index, IndexSize, Vec2, Vec3, Vec4, f32_array_from_le_bytes},
+    types::{Index, IndexSize},
+    util::f32_array_from_le_bytes,
 };
 
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("The index size mismatched")]
     IndexSizeMismatch,
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
     #[error("Negative size encountered where positive expected")]
     NegativeSize,
     #[error("Invalid weight deform type encountered")]
     InvalidWeightDeformType,
     #[error(transparent)]
     Type(#[from] crate::types::Error),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -27,7 +30,7 @@ type Result<T> = std::result::Result<T, Error>;
 #[derive(Debug)]
 pub struct Vertices {
     inner: Vec<Vertex>,
-    size: usize,
+    len: usize,
 }
 
 impl PmxParseable for Vertices {
@@ -51,26 +54,29 @@ impl PmxParseable for Vertices {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let vert = parser.parse::<Vertex>()?;
+            let vert = parser.parse()?;
             inner_vec.push(vert);
         }
 
+        debug_assert!(
+            inner_vec.len() == size,
+            "the parsed vertex count does not match the expected size"
+        );
+
         Ok(Self {
             inner: inner_vec,
-            size,
+            len: size,
         })
     }
 }
 
 impl Vertices {
     pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.size == len);
-        len
+        self.len
     }
 
-    pub fn vertices(&self) -> &[Vertex] {
-        &self.inner
+    pub fn iter(&self) -> Iter<'_, Vertex> {
+        self.inner.iter()
     }
 }
 
@@ -82,6 +88,32 @@ pub struct Vertex {
     extra_vec4: Option<Vec<Vec4>>,
     weight_deform: WeightDeform,
     edge_scale: f32,
+}
+
+impl Vertex {
+    pub fn pos(&self) -> Vec3 {
+        self.pos
+    }
+
+    pub fn normal(&self) -> Vec3 {
+        self.normal
+    }
+
+    pub fn uv(&self) -> Vec2 {
+        self.uv
+    }
+
+    pub fn extra_vec4(&self) -> Option<&Vec<Vec4>> {
+        self.extra_vec4.as_ref()
+    }
+
+    pub fn weight_deform(&self) -> &WeightDeform {
+        &self.weight_deform
+    }
+
+    pub fn edge_scale(&self) -> f32 {
+        self.edge_scale
+    }
 }
 
 impl PmxParseable for Vertex {
@@ -169,12 +201,7 @@ pub enum WeightDeform {
 }
 
 impl WeightDeform {
-    pub fn create(
-        reader: &mut impl Read,
-        typ: u8,
-        size: IndexSize,
-        index_sign: bool,
-    ) -> Result<Self> {
+    fn create(reader: &mut impl Read, typ: u8, size: IndexSize, index_sign: bool) -> Result<Self> {
         match typ {
             0 => {
                 let index = Index::create(reader, size, index_sign)?;

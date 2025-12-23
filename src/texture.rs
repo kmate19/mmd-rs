@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{io::Read, slice::Iter};
 
 use thiserror::Error;
 
@@ -14,7 +14,7 @@ pub enum Error {
     NegativeSize,
     #[error(transparent)]
     Type(#[from] crate::types::Error),
-    #[error("IO error: {0}")]
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
@@ -47,9 +47,14 @@ impl PmxParseable for Textures {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let tex = parser.parse::<Texture>()?;
+            let tex = parser.parse()?;
             inner_vec.push(tex);
         }
+
+        debug_assert!(
+            inner_vec.len() == size,
+            "the parsed texture count does not match the expected size"
+        );
 
         Ok(Self {
             len: size,
@@ -60,9 +65,11 @@ impl PmxParseable for Textures {
 
 impl Textures {
     pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
+        self.len
+    }
+
+    pub fn iter(&self) -> Iter<'_, Texture> {
+        self.inner.iter()
     }
 }
 
@@ -75,7 +82,7 @@ impl PmxParseable for Texture {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let path = parser.parse::<PmxText>()?;
+        let path = parser.parse()?;
 
         Ok(Self { path })
     }
