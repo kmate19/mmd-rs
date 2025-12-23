@@ -7,21 +7,7 @@ fn main() {
 
     let path = PathBuf::from(args[1].clone());
 
-    let pmx = Pmx::open(&path);
+    let pmx = Pmx::open(&path).unwrap();
 
-    match pmx {
-        Ok(pmx) => {
-            dbg!(&pmx);
-        }
-        Err(err) => match err {
-            mmd_rs::pmx::Error::InvalidTag => todo!(),
-            mmd_rs::pmx::Error::InvalidGlobalCount => todo!(),
-            mmd_rs::pmx::Error::Io(error) => todo!(),
-            mmd_rs::pmx::Error::Vertex(error) => todo!(),
-            mmd_rs::pmx::Error::Type(error) => todo!(),
-            mmd_rs::pmx::Error::Surface(error) => todo!(),
-            mmd_rs::pmx::Error::Texture(error) => todo!(),
-            mmd_rs::pmx::Error::Material(error) => todo!(),
-        },
-    }
+    dbg!(pmx);
 }
