@@ -10,6 +10,7 @@ pub use glam::{Vec2, Vec3, Vec4};
 
 mod bone;
 mod material;
+mod morph;
 mod parser;
 pub mod pmx;
 mod surface;

@@ -8,7 +8,7 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    bone, material,
+    bone, material, morph,
     parser::Parser,
     surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
@@ -35,6 +35,8 @@ pub enum Error {
     Material(#[from] material::Error),
     #[error("Bone error: {0}")]
     Bone(#[from] bone::Error),
+    #[error("Morph error: {0}")]
+    Morph(#[from] morph::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -54,6 +56,7 @@ pub struct Pmx {
     textures: texture::Textures,
     materials: material::Materials,
     bones: bone::Bones,
+    morphs: morph::Morphs,
 }
 
 impl fmt::Debug for Pmx {
@@ -79,6 +82,10 @@ impl fmt::Debug for Pmx {
             .field("bones", &format!(
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.bones.len()
+            ))
+            .field("morphs", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.morphs.len()
             ))
             .finish()
     }
@@ -110,6 +117,8 @@ impl Pmx {
 
         let bones = parser.parse()?;
 
+        let morphs = parser.parse()?;
+
         Ok(Pmx {
             header,
             vertices,
@@ -117,6 +126,7 @@ impl Pmx {
             materials,
             textures,
             bones,
+            morphs,
         })
     }
 
@@ -208,6 +218,24 @@ impl Pmx {
     /// }
     pub fn bones(&self) -> &bone::Bones {
         &self.bones
+    }
+
+    // TODO(mate): these are not really great examples to be honest
+
+    /// Get the PMX file morphs.
+    ///
+    /// A morph is a predefined transformation that can be applied to the model to change its shape or appearance, such as facial expressions or muscle movements.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for morph in pmx.morphs().iter() {
+    ///   println!("Morph name: {}", morph.name().universal().as_str());
+    /// }
+    pub fn morphs(&self) -> &morph::Morphs {
+        &self.morphs
     }
 }
 

@@ -10,7 +10,7 @@ checksum = "bd47b05dddf0005d850e5644cae7f2b14ac3df487979dbfff3b56f20b1a6ae46"
 
 [[package]]
 name = "mmd-rs"
-version = "0.0.2-alpha"
+version = "0.0.3-alpha"
 dependencies = [
  "glam",
  "thiserror",
