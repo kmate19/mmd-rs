@@ -1,7 +1,14 @@
 [package]
 name = "mmd-rs"
-version = "0.0.1"
+version = "0.0.1-alpha"
 edition = "2024"
+authors = ["kmate19"]
+description = "A Rust parser for MikuMikuDance (MMD) model files"
+license = "MIT"
+repository = "https://github.com/kmate19/mmd-rs"
+keywords = ["mmd", "pmx", "miku", "parser", "3d"]
+categories = ["parser-implementations", "graphics"]
+readme = "README.md"
 
 [dependencies]
 thiserror = "2.0.17"
