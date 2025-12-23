@@ -2,7 +2,11 @@ use std::io::Read;
 
 use thiserror::Error;
 
-use crate::types::{Flag, Index, PmxText, TextEncoding, Vec3, Vec4, vec_from_bytes};
+use crate::{
+    parser::{Parser, PmxParseable},
+    pmx::{Globals, Pmx},
+    types::{Flag, Index, PmxText, Vec3, Vec4, vec_from_bytes},
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -22,15 +26,13 @@ pub struct Materials {
     inner: Vec<Material>,
 }
 
-impl Materials {
-    pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
-    }
+impl PmxParseable for Materials {
+    type Error = Error;
 
-    pub fn parse(reader: &mut impl Read, index_size: u8, encoding: TextEncoding) -> Result<Self> {
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
         let mut size_bytes = [0; 4];
+
+        let reader = &mut parser.reader;
 
         reader.read_exact(&mut size_bytes)?;
 
@@ -45,7 +47,7 @@ impl Materials {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let mat = Material::parse(reader, index_size, encoding)?;
+            let mat = parser.parse::<Material>()?;
             inner_vec.push(mat);
         }
 
@@ -53,6 +55,14 @@ impl Materials {
             len: size,
             inner: inner_vec,
         })
+    }
+}
+
+impl Materials {
+    pub fn len(&self) -> usize {
+        let len = self.inner.len();
+        debug_assert!(self.len == len);
+        len
     }
 }
 
@@ -94,13 +104,17 @@ struct Name {
     universal: PmxText,
 }
 
-impl Material {
-    pub fn parse(reader: &mut impl Read, index_size: u8, encoding: TextEncoding) -> Result<Self> {
+impl PmxParseable for Material {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let name = {
-            let local = PmxText::from_bytes(reader, encoding)?;
-            let universal = PmxText::from_bytes(reader, encoding)?;
+            let local = parser.parse::<PmxText>()?;
+            let universal = parser.parse::<PmxText>()?;
             Name { local, universal }
         };
+
+        let reader = &mut parser.reader;
 
         let diffuse: Vec4 = vec_from_bytes!(Vec4, reader);
         let specular: Vec3 = vec_from_bytes!(Vec3, reader);

@@ -2,7 +2,11 @@ use std::io::Read;
 
 use thiserror::Error;
 
-use crate::types::{PmxText, TextEncoding};
+use crate::{
+    parser::{Parser, PmxParseable},
+    pmx::{Globals, Pmx},
+    types::PmxText,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -22,15 +26,13 @@ pub struct Textures {
     inner: Vec<Texture>,
 }
 
-impl Textures {
-    pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
-    }
+impl PmxParseable for Textures {
+    type Error = Error;
 
-    pub fn parse(reader: &mut impl Read, encoding: TextEncoding) -> Result<Self> {
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
         let mut size_bytes = [0; 4];
+
+        let reader = &mut parser.reader;
 
         reader.read_exact(&mut size_bytes)?;
 
@@ -45,7 +47,7 @@ impl Textures {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let tex = Texture::parse(reader, encoding)?;
+            let tex = parser.parse::<Texture>()?;
             inner_vec.push(tex);
         }
 
@@ -56,14 +58,24 @@ impl Textures {
     }
 }
 
+impl Textures {
+    pub fn len(&self) -> usize {
+        let len = self.inner.len();
+        debug_assert!(self.len == len);
+        len
+    }
+}
+
 #[derive(Debug)]
 pub struct Texture {
     path: PmxText,
 }
 
-impl Texture {
-    pub fn parse(reader: &mut impl Read, encoding: TextEncoding) -> Result<Self> {
-        let path = PmxText::from_bytes(reader, encoding)?;
+impl PmxParseable for Texture {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
+        let path = parser.parse::<PmxText>()?;
 
         Ok(Self { path })
     }

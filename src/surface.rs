@@ -2,7 +2,11 @@ use std::io::Read;
 
 use thiserror::Error;
 
-use crate::types::Index;
+use crate::{
+    parser::{Parser, PmxParseable},
+    pmx::{Globals, Pmx},
+    types::Index,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -22,15 +26,13 @@ pub struct Surfaces {
     inner: Vec<Surface>,
 }
 
-impl Surfaces {
-    pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.len == len);
-        len
-    }
+impl PmxParseable for Surfaces {
+    type Error = Error;
 
-    pub fn parse(reader: &mut impl Read, index_size: u8) -> Result<Self> {
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
         let mut size_bytes = [0; 4];
+
+        let reader = &mut parser.reader;
 
         reader.read_exact(&mut size_bytes)?;
 
@@ -45,7 +47,7 @@ impl Surfaces {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let surf = Surface::parse(reader, index_size)?;
+            let surf = parser.parse::<Surface>()?;
             inner_vec.push(surf);
         }
 
@@ -56,14 +58,25 @@ impl Surfaces {
     }
 }
 
+impl Surfaces {
+    pub fn len(&self) -> usize {
+        let len = self.inner.len();
+        debug_assert!(self.len == len);
+        len
+    }
+}
+
 #[derive(Debug)]
 pub struct Surface {
     index: Index,
 }
 
-impl Surface {
-    pub fn parse(reader: &mut impl Read, index_size: u8) -> Result<Self> {
-        let index = Index::parse(reader, index_size.try_into()?, false)?;
+impl PmxParseable for Surface {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
+        // NOTE(mate): not implementing our usual trait and pattern here because this type is simply a nightmare to generalize over
+        let index = Index::create(&mut parser.reader, globals.vert_idx_size.try_into()?, false)?;
 
         Ok(Self { index })
     }

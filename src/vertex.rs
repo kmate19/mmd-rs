@@ -2,7 +2,11 @@ use std::io::Read;
 
 use thiserror::Error;
 
-use crate::types::{Index, IndexSize, Vec2, Vec3, Vec4, vec_from_bytes};
+use crate::{
+    parser::{Parser, PmxParseable},
+    pmx::{Globals, Pmx},
+    types::{Index, IndexSize, Vec2, Vec3, Vec4, vec_from_bytes},
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -26,19 +30,13 @@ pub struct Vertices {
     size: usize,
 }
 
-impl Vertices {
-    pub fn len(&self) -> usize {
-        let len = self.inner.len();
-        debug_assert!(self.size == len);
-        len
-    }
+impl PmxParseable for Vertices {
+    type Error = Error;
 
-    pub fn vertices(&self) -> &[Vertex] {
-        &self.inner
-    }
-
-    pub fn parse(reader: &mut impl Read, extra_vec4_count: u8, index_size: u8) -> Result<Self> {
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
         let mut size = [0; 4];
+
+        let reader = &mut parser.reader;
 
         reader.read_exact(&mut size)?;
 
@@ -53,7 +51,7 @@ impl Vertices {
         let mut inner_vec = Vec::with_capacity(size);
 
         for _ in 0..size {
-            let vert = Vertex::parse(reader, extra_vec4_count, index_size)?;
+            let vert = parser.parse::<Vertex>()?;
             inner_vec.push(vert);
         }
 
@@ -61,6 +59,18 @@ impl Vertices {
             inner: inner_vec,
             size,
         })
+    }
+}
+
+impl Vertices {
+    pub fn len(&self) -> usize {
+        let len = self.inner.len();
+        debug_assert!(self.size == len);
+        len
+    }
+
+    pub fn vertices(&self) -> &[Vertex] {
+        &self.inner
     }
 }
 
@@ -74,17 +84,21 @@ pub struct Vertex {
     edge_scale: f32,
 }
 
-impl Vertex {
-    pub fn parse(reader: &mut impl Read, extra_vec4_count: u8, index_size: u8) -> Result<Self> {
+impl PmxParseable for Vertex {
+    type Error = Error;
+
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
+        let reader = &mut parser.reader;
+
         let pos = vec_from_bytes!(Vec3, reader);
 
         let normal = vec_from_bytes!(Vec3, reader);
 
         let uv = vec_from_bytes!(Vec2, reader);
 
-        let vec4s = if extra_vec4_count != 0 {
-            let mut v = Vec::with_capacity(extra_vec4_count as _);
-            for _ in 0..extra_vec4_count {
+        let vec4s = if globals.vec4_additional != 0 {
+            let mut v = Vec::with_capacity(globals.vec4_additional as _);
+            for _ in 0..globals.vec4_additional {
                 v.push(vec_from_bytes!(Vec4, reader));
             }
             Some(v)
@@ -96,9 +110,9 @@ impl Vertex {
 
         reader.read_exact(&mut weight_deform_type)?;
 
-        let size: IndexSize = index_size.try_into()?;
+        let size: IndexSize = globals.vert_idx_size.try_into()?;
 
-        let weight_deform = WeightDeform::parse(reader, weight_deform_type[0], size, true)?;
+        let weight_deform = WeightDeform::create(reader, weight_deform_type[0], size, true)?;
 
         let mut edge_scale = [0; 4];
 
@@ -155,7 +169,7 @@ pub enum WeightDeform {
 }
 
 impl WeightDeform {
-    pub fn parse(
+    pub fn create(
         reader: &mut impl Read,
         typ: u8,
         size: IndexSize,
@@ -163,14 +177,14 @@ impl WeightDeform {
     ) -> Result<Self> {
         match typ {
             0 => {
-                let index = Index::parse(reader, size, index_sign)?;
+                let index = Index::create(reader, size, index_sign)?;
 
                 Ok(WeightDeform::Bdef1 { index })
             }
             1 => {
                 let indices = [
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
                 ];
 
                 let mut weights = [0.0; 2];
@@ -189,10 +203,10 @@ impl WeightDeform {
             }
             2 => {
                 let indices = [
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
                 ];
 
                 let mut weights = [0.0; 4];
@@ -211,8 +225,8 @@ impl WeightDeform {
             }
             3 => {
                 let indices = [
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
                 ];
 
                 let mut weights = [0.0; 2];
@@ -251,10 +265,10 @@ impl WeightDeform {
             }
             4 => {
                 let indices = [
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
-                    Index::parse(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
+                    Index::create(reader, size, index_sign)?,
                 ];
 
                 let mut weights = [0.0; 4];

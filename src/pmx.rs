@@ -8,6 +8,7 @@ use std::{
 use thiserror::Error;
 
 use crate::{
+    parser::Parser,
     surface, texture,
     types::{self, PmxText, TextEncoding},
     vertex,
@@ -63,20 +64,15 @@ impl fmt::Debug for Pmx {
 impl Pmx {
     pub fn open(path: &Path) -> Result<Self> {
         let fh = std::fs::File::open(path)?;
+        let reader = BufReader::new(fh);
+        let mut parser = Parser::new(reader);
 
-        let mut reader = BufReader::new(fh);
+        let header = parser.parse_header()?;
 
-        let header = Header::parse(&mut reader)?;
+        let vertices = parser.parse::<vertex::Vertices>()?;
 
-        let vertices = vertex::Vertices::parse(
-            &mut reader,
-            header.globals.vec4_additional,
-            header.globals.bone_idx_size,
-        )?;
-
-        let surfaces = surface::Surfaces::parse(&mut reader, header.globals.vert_idx_size)?;
-
-        let textures = texture::Textures::parse(&mut reader, header.globals.encoding)?;
+        let surfaces = parser.parse::<surface::Surfaces>()?;
+        let textures = parser.parse::<texture::Textures>()?;
 
         Ok(Pmx {
             header,
@@ -89,10 +85,10 @@ impl Pmx {
 
 #[derive(Debug)]
 pub struct Header {
-    version: f32,
-    globals: Globals,
-    name: ModelName,
-    comment: Comment,
+    pub(crate) version: f32,
+    pub(crate) globals: Globals,
+    pub(crate) name: ModelName,
+    pub(crate) comment: Comment,
 }
 
 #[derive(Debug)]
@@ -107,70 +103,22 @@ pub struct Comment {
     pub universal: PmxText,
 }
 
-impl Header {
-    pub fn parse(r: &mut impl Read) -> Result<Self> {
-        // 4 bytes since there's a space after
-        let mut tag = [0; 4];
-
-        r.read_exact(&mut tag)?;
-
-        if &tag[..3] != b"PMX" {
-            Err(Error::InvalidTag)?
-        }
-
-        let mut ver = [0; 4];
-
-        r.read_exact(&mut ver)?;
-
-        let version = f32::from_le_bytes(ver);
-
-        let globals = Globals::parse(r)?;
-
-        let text_encoding = globals.encoding;
-
-        let local_name = PmxText::from_bytes(r, text_encoding)?;
-
-        let universal_name = PmxText::from_bytes(r, text_encoding)?;
-
-        let name = ModelName {
-            local: local_name,
-            universal: universal_name,
-        };
-
-        let local_comment = PmxText::from_bytes(r, text_encoding)?;
-
-        let universal_comment = PmxText::from_bytes(r, text_encoding)?;
-
-        let comment = Comment {
-            local: local_comment,
-            universal: universal_comment,
-        };
-
-        Ok(Self {
-            version,
-            globals,
-            name,
-            comment,
-        })
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Globals {
-    encoding: TextEncoding,
-    vec4_additional: u8,
-    vert_idx_size: u8,
-    tex_idx_size: u8,
-    material_idx_size: u8,
-    bone_idx_size: u8,
-    morph_idx_size: u8,
-    rb_idx_size: u8,
+    pub(crate) encoding: TextEncoding,
+    pub(crate) vec4_additional: u8,
+    pub(crate) vert_idx_size: u8,
+    pub(crate) tex_idx_size: u8,
+    pub(crate) material_idx_size: u8,
+    pub(crate) bone_idx_size: u8,
+    pub(crate) morph_idx_size: u8,
+    pub(crate) rb_idx_size: u8,
     /// Store additional fields here that we don't know the specific purpose of right now.
-    additional: Option<Vec<u8>>,
+    pub(crate) additional: Option<Vec<u8>>,
 }
 
 impl Globals {
-    pub fn parse(r: &mut impl Read) -> Result<Self> {
+    pub(crate) fn parse(r: &mut impl Read) -> Result<Self> {
         let mut global_count = [0; 1];
 
         r.read_exact(&mut global_count)?;

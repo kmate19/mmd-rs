@@ -3,7 +3,11 @@ use std::io::Read;
 
 use thiserror::Error;
 
-use crate::util::from_utf16le;
+use crate::{
+    parser::{Parser, PmxParseable},
+    pmx::{Globals, Pmx},
+    util::from_utf16le,
+};
 
 // PMX Types
 // Name	Size (bytes)	Structure	Notes
@@ -117,14 +121,18 @@ impl fmt::Display for PmxText {
     }
 }
 
-impl PmxText {
+impl PmxParseable for PmxText {
+    type Error = Error;
+
     /// Reads a PMX text string from the given reader and an encoding.
     ///
     /// Returns an error if the length is negative or if there was an IO error.
     ///
     /// Decoding the string is lazy and done when `try_into_string` is called.
-    pub fn from_bytes(reader: &mut impl Read, encoding: TextEncoding) -> Result<Self> {
+    fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let mut len = [0; 4];
+
+        let reader = &mut parser.reader;
 
         reader.read_exact(&mut len)?;
 
@@ -141,7 +149,7 @@ impl PmxText {
 
         reader.read_exact(&mut raw_bytes)?;
 
-        let decoded = match encoding {
+        let decoded = match globals.encoding {
             TextEncoding::UTF8 => {
                 // convert to &str first to validate UTF-8
                 // so if it's invalid we have not cloned yet
@@ -153,7 +161,7 @@ impl PmxText {
 
         Ok(Self {
             raw_bytes,
-            encoding,
+            encoding: globals.encoding,
             decoded,
         })
     }
@@ -187,7 +195,7 @@ pub struct Index {
 }
 
 impl Index {
-    pub fn parse(reader: &mut impl Read, mut size: IndexSize, sign: bool) -> Result<Self> {
+    pub fn create(reader: &mut impl Read, mut size: IndexSize, sign: bool) -> Result<Self> {
         // read data into the index
         match &mut size {
             IndexSize::Size1(raw) => reader.read_exact(raw)?,
