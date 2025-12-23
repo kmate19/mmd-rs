@@ -8,7 +8,7 @@ use std::{
 use thiserror::Error;
 
 use crate::{
-    bone, material, morph,
+    bone, frame, material, morph,
     parser::Parser,
     surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
@@ -37,6 +37,8 @@ pub enum Error {
     Bone(#[from] bone::Error),
     #[error("Morph error: {0}")]
     Morph(#[from] morph::Error),
+    #[error("Frame error: {0}")]
+    Frame(#[from] frame::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -57,6 +59,7 @@ pub struct Pmx {
     materials: material::Materials,
     bones: bone::Bones,
     morphs: morph::Morphs,
+    frames: frame::Frames,
 }
 
 impl fmt::Debug for Pmx {
@@ -84,6 +87,10 @@ impl fmt::Debug for Pmx {
                 self.bones.len()
             ))
             .field("morphs", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.morphs.len()
+            ))
+            .field("frames", &format!(
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.morphs.len()
             ))
@@ -119,6 +126,8 @@ impl Pmx {
 
         let morphs = parser.parse()?;
 
+        let frames = parser.parse()?;
+
         Ok(Pmx {
             header,
             vertices,
@@ -127,6 +136,7 @@ impl Pmx {
             textures,
             bones,
             morphs,
+            frames,
         })
     }
 
@@ -236,6 +246,10 @@ impl Pmx {
     /// }
     pub fn morphs(&self) -> &morph::Morphs {
         &self.morphs
+    }
+
+    pub fn frames(&self) -> &frame::Frames {
+        &self.frames
     }
 }
 

@@ -9,6 +9,7 @@ pub type Vec4 = [f32; 4];
 pub use glam::{Vec2, Vec3, Vec4};
 
 mod bone;
+mod frame;
 mod material;
 mod morph;
 mod parser;
