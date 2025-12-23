@@ -117,7 +117,7 @@ impl PmxText {
         self.encoding
     }
 
-    pub fn decoded(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.decoded
     }
 }
@@ -182,10 +182,22 @@ impl PmxParseable for PmxText {
 }
 
 /// A helper for a common pattern in pmx files of having local and universal version of text together
+///
+/// The display impl shows both versions for easier debugging
 #[derive(Debug)]
 pub struct PmxTextGroup {
     local: PmxText,
     universal: PmxText,
+}
+
+impl fmt::Display for PmxTextGroup {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "<Local>: \t{}\n<Universal>: \t{}",
+            self.local, self.universal
+        )
+    }
 }
 
 impl PmxParseable for PmxTextGroup {

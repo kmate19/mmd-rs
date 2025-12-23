@@ -78,6 +78,12 @@ pub struct Texture {
     path: PmxText,
 }
 
+impl Texture {
+    pub fn path(&self) -> &PmxText {
+        &self.path
+    }
+}
+
 impl PmxParseable for Texture {
     type Error = Error;
 

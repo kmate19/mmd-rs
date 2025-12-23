@@ -43,6 +43,8 @@ pub use texture::Error as TextureError;
 pub use types::Error as TypeError;
 pub use vertex::Error as VertexError;
 
+/// The main PMX structure representing a parsed PMX file.
+/// Can be created using the `Pmx::open` function.
 pub struct Pmx {
     header: Header,
     vertices: vertex::Vertices,
@@ -76,6 +78,15 @@ impl fmt::Debug for Pmx {
 }
 
 impl Pmx {
+    /// Open and parse a PMX file from the given path.
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    /// println!("Model name: {}", pmx.header().name());
+    /// ```
+    ///
+    /// This function can fail from standard IO errors, as well as parsing errors related to the PMX file.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
         let fh = std::fs::File::open(path)?;
         let reader = BufReader::new(fh);
@@ -99,22 +110,76 @@ impl Pmx {
         })
     }
 
+    /// Get the PMX file header.
+    ///
+    /// The header contains metadata about the PMX file, including version information, global settings, and model names/comments.
     pub fn header(&self) -> &Header {
         &self.header
     }
 
+    /// Get the PMX file vertices.
+    ///
+    /// A vertex contains information about a single point in 3D space, including its position, normal vector, UV coordinates, and skinning information.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for vertex in pmx.vertices().iter() {
+    ///    println!("Vertex position: {:?}", vertex.pos());
+    /// }
+    /// ```
     pub fn vertices(&self) -> &vertex::Vertices {
         &self.vertices
     }
 
+    /// Get the PMX file surfaces.
+    ///
+    /// A surface defines how vertices are connected to form the 3D model's geometry, typically represented as triangles.
+    ///
+    /// These can therefore be thought of regular indices in other 3D formats.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for surface in pmx.surfaces().iter() {
+    ///   println!("Surface index: {:?}", surface.as_index());
+    /// }
     pub fn surfaces(&self) -> &surface::Surfaces {
         &self.surfaces
     }
 
+    /// Get the PMX file textures.
+    ///
+    /// A texture is an image applied to the surface of a 3D model to give it color and detail, internally this is just a file path to the texture image.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for texture in pmx.textures().iter() {
+    ///    println!("Texture path: {}", texture.path().as_str());
+    /// }
     pub fn textures(&self) -> &texture::Textures {
         &self.textures
     }
 
+    /// Get the PMX file materials.
+    ///
+    /// A material defines the visual properties of a surface, like blending mode, edge color, etc.
+    ///
+    /// ```no_run
+    /// use mmd_rs::pmx::Pmx;
+    ///
+    /// let pmx = Pmx::open("path/to/model.pmx").expect("Failed to open PMX file");
+    ///
+    /// for material in pmx.materials().iter() {
+    ///    println!("Material name: {}", material.name());
+    /// }
     pub fn materials(&self) -> &material::Materials {
         &self.materials
     }

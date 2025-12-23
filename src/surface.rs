@@ -79,7 +79,7 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn as_value(&self) -> i32 {
+    pub fn as_index(&self) -> i32 {
         self.index.value()
     }
 }
