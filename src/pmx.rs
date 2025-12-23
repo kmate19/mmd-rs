@@ -8,6 +8,7 @@ use std::{
 use thiserror::Error;
 
 use crate::{
+    material,
     parser::Parser,
     surface, texture,
     types::{self, PmxText, TextEncoding},
@@ -30,6 +31,8 @@ pub enum Error {
     Surface(#[from] surface::Error),
     #[error("Texture error: {0}")]
     Texture(#[from] texture::Error),
+    #[error("Material error: {0}")]
+    Material(#[from] material::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -39,6 +42,7 @@ pub struct Pmx {
     vertices: vertex::Vertices,
     surfaces: surface::Surfaces,
     textures: texture::Textures,
+    materials: material::Materials,
 }
 
 impl fmt::Debug for Pmx {
@@ -57,6 +61,10 @@ impl fmt::Debug for Pmx {
                 self.surfaces.len()
             ))
             .field("textures", &self.textures)
+            .field("materials", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.materials.len()
+            ))
             .finish()
     }
 }
@@ -74,10 +82,15 @@ impl Pmx {
         let surfaces = parser.parse::<surface::Surfaces>()?;
         let textures = parser.parse::<texture::Textures>()?;
 
+        let materials = parser.parse::<material::Materials>()?;
+
+        dbg!(&materials);
+
         Ok(Pmx {
             header,
             vertices,
             surfaces,
+            materials,
             textures,
         })
     }

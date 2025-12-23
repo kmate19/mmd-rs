@@ -5,7 +5,7 @@ use thiserror::Error;
 use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
-    types::{Index, IndexSize, Vec2, Vec3, Vec4, vec_from_bytes},
+    types::{Index, IndexSize, Vec2, Vec3, Vec4, f32_array_from_le_bytes},
 };
 
 #[derive(Debug, Error)]
@@ -90,16 +90,16 @@ impl PmxParseable for Vertex {
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let reader = &mut parser.reader;
 
-        let pos = vec_from_bytes!(Vec3, reader);
+        let pos = f32_array_from_le_bytes!(3, reader).into();
 
-        let normal = vec_from_bytes!(Vec3, reader);
+        let normal = f32_array_from_le_bytes!(3, reader).into();
 
-        let uv = vec_from_bytes!(Vec2, reader);
+        let uv = f32_array_from_le_bytes!(2, reader).into();
 
         let vec4s = if globals.vec4_additional != 0 {
             let mut v = Vec::with_capacity(globals.vec4_additional as _);
             for _ in 0..globals.vec4_additional {
-                v.push(vec_from_bytes!(Vec4, reader));
+                v.push(f32_array_from_le_bytes!(4, reader).into());
             }
             Some(v)
         } else {
@@ -209,17 +209,7 @@ impl WeightDeform {
                     Index::create(reader, size, index_sign)?,
                 ];
 
-                let mut weights = [0.0; 4];
-
-                let mut weights_bytes = [0; std::mem::size_of::<[f32; 4]>()];
-                reader.read_exact(&mut weights_bytes)?;
-
-                let chunks = weights_bytes.as_chunks::<4>().0;
-
-                weights[0] = f32::from_le_bytes(chunks[0]);
-                weights[1] = f32::from_le_bytes(chunks[1]);
-                weights[2] = f32::from_le_bytes(chunks[2]);
-                weights[3] = f32::from_le_bytes(chunks[3]);
+                let weights = f32_array_from_le_bytes!(4, reader);
 
                 Ok(WeightDeform::Bdef4 { indices, weights })
             }
@@ -245,7 +235,7 @@ impl WeightDeform {
                 let mut r1 = Vec3::default();
 
                 for i in 0..3 {
-                    let vec: Vec3 = vec_from_bytes!(Vec3, reader);
+                    let vec: Vec3 = f32_array_from_le_bytes!(3, reader).into();
 
                     match i {
                         0 => c = vec,
@@ -271,17 +261,7 @@ impl WeightDeform {
                     Index::create(reader, size, index_sign)?,
                 ];
 
-                let mut weights = [0.0; 4];
-
-                let mut weights_bytes = [0; std::mem::size_of::<[f32; 4]>()];
-                reader.read_exact(&mut weights_bytes)?;
-
-                let chunks = weights_bytes.as_chunks::<4>().0;
-
-                weights[0] = f32::from_le_bytes(chunks[0]);
-                weights[1] = f32::from_le_bytes(chunks[1]);
-                weights[2] = f32::from_le_bytes(chunks[2]);
-                weights[3] = f32::from_le_bytes(chunks[3]);
+                let weights = f32_array_from_le_bytes!(4, reader);
 
                 Ok(WeightDeform::Qdef { indices, weights })
             }
