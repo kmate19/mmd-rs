@@ -12,6 +12,7 @@ use crate::{
     parser::Parser,
     rb, surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
+    util::ReadExt,
     vertex,
 };
 
@@ -261,6 +262,10 @@ impl Pmx {
     pub fn frames(&self) -> &frame::Frames {
         &self.frames
     }
+
+    pub fn rigid_bodies(&self) -> &rb::RigidBodies {
+        &self.rigid_bodies
+    }
 }
 
 #[derive(Debug)]
@@ -306,20 +311,18 @@ pub struct Globals {
 
 impl Globals {
     pub(crate) fn from_bytes(r: &mut impl Read) -> Result<Self> {
-        let mut global_count = [0; 1];
+        let global_count = r.read_byte()? as i8;
 
-        r.read_exact(&mut global_count)?;
-
-        if global_count[0] < 8 {
+        if global_count < 8 {
             Err(Error::InvalidGlobalCount)?
         }
 
         // note that global count is actually an i8, but since we already checked it's >= 8 we can assume its not negative.
-        let mut globals = vec![0; global_count[0] as usize];
+        let mut globals = vec![0; global_count as usize];
 
         r.read_exact(&mut globals)?;
 
-        let additional = if global_count[0] > 8 {
+        let additional = if global_count > 8 {
             Some(globals.split_off(8))
         } else {
             None

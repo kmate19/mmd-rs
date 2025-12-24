@@ -9,6 +9,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::{Flag, Index, PmxText, PmxTextGroup},
+    util::ReadExt,
 };
 
 #[derive(Debug, Error)]
@@ -37,13 +38,7 @@ impl PmxParseable for Materials {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size_bytes = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size_bytes)?;
-
-        let size = i32::from_le_bytes(size_bytes);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?
@@ -110,11 +105,7 @@ impl PmxParseable for Material {
             let diffuse: Vec4 = f32_array_from_le_bytes!(4, reader).into();
             let specular: Vec3 = f32_array_from_le_bytes!(3, reader).into();
 
-            let specular_strength = {
-                let mut buf = [0; 4];
-                reader.read_exact(&mut buf)?;
-                f32::from_le_bytes(buf)
-            };
+            let specular_strength = reader.read_f32_le()?;
 
             let ambient: Vec3 = f32_array_from_le_bytes!(3, reader).into();
 
@@ -128,39 +119,23 @@ impl PmxParseable for Material {
 
             let edge_color: Vec4 = f32_array_from_le_bytes!(4, reader).into();
 
-            let edge_scale = {
-                let mut buf = [0; 4];
-                reader.read_exact(&mut buf)?;
-                f32::from_le_bytes(buf)
-            };
+            let edge_scale = reader.read_f32_le()?;
 
             let tex_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
 
             let env_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
 
-            let env_blend = {
-                let mut buf = [0; 1];
-                reader.read_exact(&mut buf)?;
-                EnvBlendMode::try_from(buf[0])?
-            };
+            let env_blend = reader.read_byte()?.try_into()?;
 
             // NOTE(mate): we dont store this on the struct since its only used to determine how to read the toon value
-            let toon_ref = {
-                let mut buf = [0; 1];
-                reader.read_exact(&mut buf)?;
-                ToonRef::try_from(buf[0])?
-            };
+            let toon_ref = reader.read_byte()?.try_into()?;
 
             let toon = match toon_ref {
                 ToonRef::Texture => {
                     let toon_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
                     Toon::Texture(toon_idx)
                 }
-                ToonRef::Internal => {
-                    let mut buf = [0; 1];
-                    reader.read_exact(&mut buf)?;
-                    Toon::Internal(buf[0])
-                }
+                ToonRef::Internal => Toon::Internal(reader.read_byte()?),
             };
 
             (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon)
@@ -168,13 +143,7 @@ impl PmxParseable for Material {
 
         let meta = parser.parse()?;
 
-        let reader = &mut parser.reader;
-
-        let surface_count = {
-            let mut buf = [0; 4];
-            reader.read_exact(&mut buf)?;
-            i32::from_le_bytes(buf)
-        };
+        let surface_count = parser.reader.read_i32_le()?;
 
         Ok(Self {
             name,

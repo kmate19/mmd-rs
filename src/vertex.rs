@@ -8,7 +8,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::{Index, IndexSize},
-    util::f32_array_from_le_bytes,
+    util::{ReadExt, f32_array_from_le_bytes},
 };
 
 #[derive(Debug, Error)]
@@ -37,13 +37,7 @@ impl PmxParseable for Vertices {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size)?;
-
-        let size = i32::from_le_bytes(size);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?
@@ -130,27 +124,26 @@ impl PmxParseable for Vertex {
 
         let vec4s = if globals.vec4_additional != 0 {
             let mut v = Vec::with_capacity(globals.vec4_additional as _);
+
             for _ in 0..globals.vec4_additional {
                 v.push(f32_array_from_le_bytes!(4, reader).into());
             }
+
             Some(v)
         } else {
             None
         };
 
-        let mut weight_deform_type = [0; 1];
+        let weight_deform_type = reader.read_byte()?;
 
-        reader.read_exact(&mut weight_deform_type)?;
+        let weight_deform = WeightDeform::create(
+            reader,
+            weight_deform_type,
+            globals.vert_idx_size.try_into()?,
+            true,
+        )?;
 
-        let size: IndexSize = globals.vert_idx_size.try_into()?;
-
-        let weight_deform = WeightDeform::create(reader, weight_deform_type[0], size, true)?;
-
-        let mut edge_scale = [0; 4];
-
-        reader.read_exact(&mut edge_scale)?;
-
-        let edge_scale = f32::from_le_bytes(edge_scale);
+        let edge_scale = reader.read_f32_le()?;
 
         Ok(Self {
             pos,

@@ -10,6 +10,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::PmxTextGroup,
+    util::ReadExt,
 };
 
 #[derive(Debug, Error)]
@@ -34,13 +35,7 @@ impl PmxParseable for Bones {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size_bytes = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size_bytes)?;
-
-        let size = i32::from_le_bytes(size_bytes);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?
@@ -193,15 +188,12 @@ impl PmxParseable for Bone {
 
         let (pos, parent, layer) = {
             let reader = &mut parser.reader;
+
             let pos = f32_array_from_le_bytes!(3, reader).into();
 
             let parent = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
 
-            let layer = {
-                let mut layer_bytes = [0; 4];
-                reader.read_exact(&mut layer_bytes)?;
-                i32::from_le_bytes(layer_bytes)
-            };
+            let layer = reader.read_i32_le()?;
 
             (pos, parent, layer)
         };
@@ -241,11 +233,7 @@ impl PmxParseable for Bone {
         let inherit = if flags[1].get_state(0) || flags[1].get_state(1) {
             Some(InheritBone {
                 parent: Index::create(reader, globals.bone_idx_size.try_into()?, true)?,
-                parent_influence: {
-                    let mut influence_bytes = [0; 4];
-                    reader.read_exact(&mut influence_bytes)?;
-                    f32::from_le_bytes(influence_bytes)
-                },
+                parent_influence: reader.read_f32_le()?,
             })
         } else {
             None
@@ -280,28 +268,21 @@ impl PmxParseable for Bone {
 
         let ik = if flags[0].get_state(5) {
             let target = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
-            let loop_count = {
-                let mut loop_bytes = [0; 4];
-                reader.read_exact(&mut loop_bytes)?;
-                i32::from_le_bytes(loop_bytes)
-            };
-            let limit_rad = {
-                let mut limit_bytes = [0; 4];
-                reader.read_exact(&mut limit_bytes)?;
-                f32::from_le_bytes(limit_bytes)
-            };
-            let link_count = {
-                let mut link_count_bytes = [0; 4];
-                reader.read_exact(&mut link_count_bytes)?;
-                i32::from_le_bytes(link_count_bytes)
-            };
+
+            let loop_count = reader.read_i32_le()?;
+
+            let limit_rad = reader.read_f32_le()?;
+
+            let link_count = reader.read_i32_le()?;
+
             let links = if link_count > 0 {
                 let mut v = Vec::with_capacity(link_count as _);
+
                 for _ in 0..link_count {
                     let index = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
-                    let mut limit_flag_bytes = [0; 1];
-                    reader.read_exact(&mut limit_flag_bytes)?;
-                    let limits = limit_flag_bytes[0] != 0;
+
+                    let limits = reader.read_byte()? != 0;
+
                     let limit = if limits {
                         Some(IKLimit {
                             min: f32_array_from_le_bytes!(3, reader).into(),

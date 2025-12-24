@@ -9,6 +9,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::{Index, PmxTextGroup},
+    util::ReadExt,
 };
 
 #[derive(Debug, Error)]
@@ -35,13 +36,7 @@ impl PmxParseable for Morphs {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size_bytes = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size_bytes)?;
-
-        let size = i32::from_le_bytes(size_bytes);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?
@@ -183,31 +178,13 @@ impl PmxParseable for Morph {
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let name = parser.parse()?;
 
-        let panel_type = {
-            let mut byte = [0; 1];
-            parser.reader.read_exact(&mut byte)?;
-            byte[0]
-        };
-
-        // dbg!(&panel_type);
-
-        let morph_type = {
-            let mut byte = [0; 1];
-            parser.reader.read_exact(&mut byte)?;
-            byte[0]
-        };
-
-        // dbg!(&morph_type);
-
-        let offset_len = {
-            let mut len_bytes = [0; 4];
-            parser.reader.read_exact(&mut len_bytes)?;
-            i32::from_le_bytes(len_bytes)
-        };
-
-        // dbg!(&offset_len);
-
         let reader = &mut parser.reader;
+
+        let panel_type = reader.read_byte()?;
+
+        let morph_type = reader.read_byte()?;
+
+        let offset_len = reader.read_i32_le()?;
 
         let offset_data = if offset_len > 0 {
             let mut data = Vec::with_capacity(offset_len as _);
@@ -219,11 +196,7 @@ impl PmxParseable for Morph {
 
                         let morph = GroupMorph {
                             index: Index::create(reader, globals.morph_idx_size.try_into()?, true)?,
-                            influence: {
-                                let mut bytes = [0; 4];
-                                reader.read_exact(&mut bytes)?;
-                                f32::from_le_bytes(bytes)
-                            },
+                            influence: reader.read_f32_le()?,
                         };
 
                         data.push(OffsetData::Group(morph));
@@ -268,25 +241,13 @@ impl PmxParseable for Morph {
                                 globals.material_idx_size.try_into()?,
                                 true,
                             )?,
-                            operation: {
-                                let mut byte = [0; 1];
-                                reader.read_exact(&mut byte)?;
-                                byte[0]
-                            },
+                            operation: reader.read_byte()?,
                             diffuse: f32_array_from_le_bytes!(4, reader).into(),
                             specular: f32_array_from_le_bytes!(3, reader).into(),
-                            specular_power: {
-                                let mut bytes = [0; 4];
-                                reader.read_exact(&mut bytes)?;
-                                f32::from_le_bytes(bytes)
-                            },
+                            specular_power: reader.read_f32_le()?,
                             ambient: f32_array_from_le_bytes!(3, reader).into(),
                             edge_color: f32_array_from_le_bytes!(4, reader).into(),
-                            edge_size: {
-                                let mut bytes = [0; 4];
-                                reader.read_exact(&mut bytes)?;
-                                f32::from_le_bytes(bytes)
-                            },
+                            edge_size: reader.read_f32_le()?,
                             texture_add: f32_array_from_le_bytes!(4, reader).into(),
                             sphere_add: f32_array_from_le_bytes!(4, reader).into(),
                             toon_add: f32_array_from_le_bytes!(4, reader).into(),
@@ -299,11 +260,7 @@ impl PmxParseable for Morph {
 
                         let morph = FlipMorph {
                             index: Index::create(reader, globals.morph_idx_size.try_into()?, true)?,
-                            influence: {
-                                let mut bytes = [0; 4];
-                                reader.read_exact(&mut bytes)?;
-                                f32::from_le_bytes(bytes)
-                            },
+                            influence: reader.read_f32_le()?,
                         };
 
                         data.push(OffsetData::Flip(morph));
@@ -313,11 +270,7 @@ impl PmxParseable for Morph {
 
                         let morph = ImpulseMorph {
                             index: Index::create(reader, globals.rb_idx_size.try_into()?, true)?,
-                            is_local: {
-                                let mut byte = [0; 1];
-                                reader.read_exact(&mut byte)?;
-                                byte[0] != 0
-                            },
+                            is_local: reader.read_byte()? != 0,
                             velocity: f32_array_from_le_bytes!(3, reader).into(),
                             angular_velocity: f32_array_from_le_bytes!(3, reader).into(),
                         };
@@ -331,8 +284,6 @@ impl PmxParseable for Morph {
         } else {
             None
         };
-
-        // dbg!(&offset_data);
 
         Ok(Self {
             name,

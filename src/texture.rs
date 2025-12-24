@@ -6,6 +6,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::PmxText,
+    util::ReadExt,
 };
 
 #[derive(Debug, Error)]
@@ -30,13 +31,7 @@ impl PmxParseable for Textures {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size_bytes = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size_bytes)?;
-
-        let size = i32::from_le_bytes(size_bytes);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?

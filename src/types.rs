@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
-    util::from_utf16le,
+    util::{ReadExt, from_utf16le},
 };
 
 // PMX Types
@@ -74,11 +74,9 @@ impl PmxParseable for Flag {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let reader = &mut parser.reader;
-
-        let mut bytes = [0; 1];
-        reader.read_exact(&mut bytes)?;
-        Ok(Self { raw: bytes[0] })
+        Ok(Self {
+            raw: parser.reader.read_byte()?,
+        })
     }
 }
 
@@ -148,14 +146,9 @@ impl PmxParseable for PmxText {
     ///
     /// Returns an error if the length is negative or if there was an IO error.
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
-        let mut len = [0; 4];
-
         let reader = &mut parser.reader;
 
-        reader.read_exact(&mut len)?;
-
-        // this is an i32 for some reason as per "spec"
-        let len = i32::from_le_bytes(len);
+        let len = reader.read_i32_le()?;
 
         if len.is_negative() {
             Err(Error::NegativeLength)?

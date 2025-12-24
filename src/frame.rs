@@ -6,6 +6,7 @@ use crate::{
     parser::{Parser, PmxParseable},
     pmx::{Globals, Pmx},
     types::{Index, PmxTextGroup},
+    util::ReadExt,
 };
 
 #[derive(Debug, Error)]
@@ -32,13 +33,7 @@ impl PmxParseable for Frames {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, _globals: &Globals) -> Result<Self> {
-        let mut size_bytes = [0; 4];
-
-        let reader = &mut parser.reader;
-
-        reader.read_exact(&mut size_bytes)?;
-
-        let size = i32::from_le_bytes(size_bytes);
+        let size = parser.reader.read_i32_le()?;
 
         if size.is_negative() {
             Err(Error::NegativeSize)?
@@ -115,36 +110,27 @@ impl PmxParseable for Frame {
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let name = parser.parse()?;
 
-        let special = {
-            let mut bytes = [0; 1];
-            parser.reader.read_exact(&mut bytes)?;
-            bytes[0] != 0
-        };
+        let reader = &mut parser.reader;
 
-        let frame_len = {
-            let mut bytes = [0; 4];
-            parser.reader.read_exact(&mut bytes)?;
-            i32::from_le_bytes(bytes)
-        };
+        let special = reader.read_byte()? != 0;
+
+        let frame_len = reader.read_i32_le()?;
 
         let frames = {
             if frame_len > 0 {
                 let mut vec = Vec::with_capacity(frame_len as _);
+
                 for _ in 0..frame_len {
-                    let frame_type = {
-                        let mut bytes = [0; 1];
-                        parser.reader.read_exact(&mut bytes)?;
-                        bytes[0]
-                    };
+                    let frame_type = reader.read_byte()?;
 
                     let data_inner = match frame_type {
                         0 => FrameDataInner::Bone(Index::create(
-                            &mut parser.reader,
+                            reader,
                             globals.bone_idx_size.try_into()?,
                             true,
                         )?),
                         1 => FrameDataInner::Morph(Index::create(
-                            &mut parser.reader,
+                            reader,
                             globals.morph_idx_size.try_into()?,
                             true,
                         )?),

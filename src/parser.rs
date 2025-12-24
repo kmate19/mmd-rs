@@ -2,6 +2,8 @@ use std::io::Read;
 
 use crate::pmx::{self, Header, Pmx};
 
+use crate::util::ReadExt;
+
 pub(crate) struct Parser<R: Read, F: MMDFormat> {
     pub(crate) reader: R,
     globals: Option<F::Global>,
@@ -33,11 +35,10 @@ impl<R: Read> Parser<R, Pmx> {
             Err(pmx::Error::InvalidTag)?
         }
 
-        let mut ver = [0; 4];
-        r.read_exact(&mut ver)?;
-        let version = f32::from_le_bytes(ver);
+        let version = r.read_f32_le()?;
 
         let globals = pmx::Globals::from_bytes(r)?;
+
         self.globals = Some(globals.clone());
 
         let name = self.parse()?;
