@@ -29,7 +29,7 @@ println!("Model name: {}", pmx.header().name());
 - [x] Morph support
 - [x] Display Frame support
 - [x] Physics support (rigid bodies, joints)
-- [ ] Soft body support (2.1)
+- [x] Soft body support (2.1)
 - [ ] Documentation
 - [ ] Examples
 - [ ] Tests

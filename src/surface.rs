@@ -13,6 +13,8 @@ use crate::{
 pub enum Error {
     #[error("Negative size encountered where positive expected")]
     NegativeSize,
+    #[error("Invalid surface size: must be a multiple of 3 and must match the advertised count")]
+    InvalidSize,
     #[error(transparent)]
     Type(#[from] crate::types::Error),
     #[error(transparent)]
@@ -46,10 +48,9 @@ impl PmxParseable for Surfaces {
             inner_vec.push(surf);
         }
 
-        debug_assert!(
-            inner_vec.len() == size,
-            "the parsed surface count does not match the expected size"
-        );
+        if inner_vec.len() % 3 != 0 || inner_vec.len() != size {
+            Err(Error::InvalidSize)?; // or some other appropriate error
+        }
 
         Ok(Self {
             len: size,
