@@ -76,7 +76,8 @@ impl Morphs {
 #[derive(Debug)]
 pub struct Morph {
     name: PmxTextGroup,
-    panel_type: u8,
+    // unsure what the exact values of this are
+    panel_type: i8,
     _morph_type: u8,
     _offset_len: i32,
     offset_data: Option<Vec<OffsetData>>,
@@ -91,7 +92,7 @@ impl Morph {
         self.offset_data.as_ref()
     }
 
-    pub fn panel_type(&self) -> u8 {
+    pub fn panel_type(&self) -> i8 {
         self.panel_type
     }
 }
@@ -144,7 +145,8 @@ pub struct UVMorph {
 pub struct MaterialMorph {
     // material index
     pub index: Index,
-    pub operation: u8,
+    // unsure about this
+    pub operation: i8,
     pub diffuse: Vec4,
     pub specular: Vec3,
     pub specular_power: f32,
@@ -180,7 +182,7 @@ impl PmxParseable for Morph {
 
         let reader = &mut parser.reader;
 
-        let panel_type = reader.read_byte()?;
+        let panel_type = reader.read_i8()?;
         let morph_type = reader.read_byte()?;
         let offset_len = reader.read_i32_le()?;
 
@@ -235,7 +237,7 @@ impl PmxParseable for Morph {
 
                         let morph = MaterialMorph {
                             index: Index::parse_material(reader, globals.material_idx_size)?,
-                            operation: reader.read_byte()?,
+                            operation: reader.read_i8()?,
                             diffuse: f32_array_from_le_bytes!(4, reader).into(),
                             specular: f32_array_from_le_bytes!(3, reader).into(),
                             specular_power: reader.read_f32_le()?,

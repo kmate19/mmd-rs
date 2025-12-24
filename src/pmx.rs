@@ -22,6 +22,8 @@ pub enum Error {
     InvalidTag,
     #[error("Invalid global variable amount, must be at least 8")]
     InvalidGlobalCount,
+    #[error("Invalid Vec4 additional value, must be between 0 and 4 inclusive")]
+    InvalidVec4Additional,
     #[error("Leftover bytes in file after parsing {amount} for version {version}")]
     LeftoverBytes { amount: usize, version: f32 },
     #[error("Unsupported file version: {version}")]
@@ -342,13 +344,12 @@ pub struct Globals {
     pub(crate) rb_idx_size: IndexSize,
     /// Store additional fields here that we don't know the specific purpose of right now.
     #[allow(dead_code, reason = "we don't have a use for these yet")]
-    pub(crate) additional: Option<Vec<u8>>,
+    pub(crate) additional: Option<Vec<i8>>,
 }
 
 impl Globals {
     pub(crate) fn from_bytes(r: &mut impl Read) -> Result<Self> {
-        let global_count = r.read_byte()? as i8;
-
+        let global_count = r.read_i8()?;
         if global_count < 8 {
             Err(Error::InvalidGlobalCount)?
         }
@@ -358,8 +359,16 @@ impl Globals {
 
         r.read_exact(&mut globals)?;
 
+        match globals[1] {
+            0..=4 => {}
+            _ => Err(Error::InvalidVec4Additional)?,
+        }
+
         let additional = if global_count > 8 {
-            Some(globals.split_off(8))
+            // because these are signed bytes in the spec, we need to convert them properly
+            // note that we dont convert the rest even though theyre signed
+            // but since they have a corresponding type with limited value, try_into will catch invalid values anyways
+            Some(globals.split_off(8).into_iter().map(|b| b as i8).collect())
         } else {
             None
         };

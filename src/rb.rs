@@ -79,7 +79,7 @@ impl RigidBodies {
 pub struct RigidBody {
     name: PmxTextGroup,
     related_bone_index: Index,
-    group_id: u8,
+    group_id: i8,
     non_collision_group: i16,
     shape: Shape,
     shape_size: Vec3,
@@ -152,7 +152,7 @@ impl PmxParseable for RigidBody {
         let reader = &mut parser.reader;
 
         let related_bone_index = Index::parse_bone(reader, globals.bone_idx_size)?;
-        let group_id = reader.read_byte()?;
+        let group_id = reader.read_i8()?;
         let non_collision_group = reader.read_i16_le()?;
         let shape = reader.read_byte()?.try_into()?;
         let shape_size = f32_array_from_le_bytes!(3, reader).into();
