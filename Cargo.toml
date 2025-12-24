@@ -1,6 +1,6 @@
 [package]
 name = "mmd-rs"
-version = "0.0.6-alpha"
+version = "0.0.7-alpha"
 edition = "2024"
 authors = ["kmate19"]
 description = "A Rust parser for MikuMikuDance (MMD) model files"

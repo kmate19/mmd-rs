@@ -71,7 +71,7 @@ impl SoftBodies {
 }
 
 #[repr(u8)]
-pub enum SoftBodyFlags {
+pub enum SoftBodyFlag {
     BLink,
     ClusterCreation,
     LinkCrossing,
@@ -99,7 +99,79 @@ pub struct SoftBody {
     vertex_pins: Vec<VertexPin>,
 }
 
-impl SoftBody {}
+impl SoftBody {
+    pub fn has_flag(&self, flag: SoftBodyFlag) -> bool {
+        self.flag().get_state(flag as u8)
+    }
+
+    pub fn name(&self) -> &PmxTextGroup {
+        &self.name
+    }
+
+    pub fn shape(&self) -> &Shape {
+        &self.shape
+    }
+
+    pub fn material_index(&self) -> &Index {
+        &self.material_index
+    }
+
+    pub fn group_id(&self) -> i8 {
+        self.group_id
+    }
+
+    pub fn non_collision_mask(&self) -> i16 {
+        self.non_collision_mask
+    }
+
+    pub fn flag(&self) -> Flag {
+        self.flag
+    }
+
+    pub fn b_link_distance(&self) -> i32 {
+        self.b_link_distance
+    }
+
+    pub fn num_clusters(&self) -> i32 {
+        self.num_clusters
+    }
+
+    pub fn total_mass(&self) -> f32 {
+        self.total_mass
+    }
+
+    pub fn collision_margin(&self) -> f32 {
+        self.collision_margin
+    }
+
+    pub fn aerodynamics_model(&self) -> &AerodynamicsModel {
+        &self.aerodynamics_model
+    }
+
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
+    pub fn cluster(&self) -> &Cluster {
+        &self.cluster
+    }
+
+    pub fn iteration(&self) -> &Iteration {
+        &self.iteration
+    }
+
+    pub fn material(&self) -> &Material {
+        &self.material
+    }
+
+    pub fn anchor_rbs(&self) -> &[AnchorRB] {
+        &self.anchor_rbs
+    }
+
+    pub fn vertex_pins(&self) -> &[VertexPin] {
+        &self.vertex_pins
+    }
+}
 
 impl PmxParseable for SoftBody {
     type Error = Error;
@@ -340,9 +412,9 @@ impl TryFrom<i32> for AerodynamicsModel {
 
 #[derive(Debug)]
 pub struct AnchorRB {
-    rb_index: Index,
-    vertex_index: Index,
-    near_mode: i8,
+    pub rb_index: Index,
+    pub vertex_index: Index,
+    pub near_mode: i8,
 }
 
 impl PmxParseable for AnchorRB {
@@ -359,5 +431,5 @@ impl PmxParseable for AnchorRB {
 
 #[derive(Debug)]
 pub struct VertexPin {
-    index: Index,
+    pub index: Index,
 }

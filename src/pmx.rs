@@ -72,6 +72,14 @@ pub use texture::Error as TextureError;
 pub use types::Error as TypeError;
 pub use vertex::Error as VertexError;
 
+pub mod flags {
+    pub use super::{
+        bone::{BoneFlag, InheritFlag},
+        material::MaterialFlag,
+        sb::SoftBodyFlag,
+    };
+}
+
 /// The main PMX structure representing a parsed PMX file.
 /// Can be created using the `Pmx::open` function.
 pub struct Pmx {
@@ -329,6 +337,10 @@ impl Pmx {
 
     pub fn joints(&self) -> &joint::Joints {
         &self.joints
+    }
+
+    pub fn soft_bodies(&self) -> Option<&SoftBodies> {
+        self.soft_bodies.as_ref()
     }
 }
 
