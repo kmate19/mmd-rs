@@ -27,6 +27,8 @@ pub enum Error {
     InvalidTextEncoding,
     #[error("Index size mismatch")]
     IndexSizeMismatch,
+    #[error("Bit index out of range")]
+    BitIndexOutOfRange,
     #[error(transparent)]
     Io(#[from] std::io::Error),
     #[error(transparent)]
@@ -37,10 +39,10 @@ pub enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
+// TODO(mate): consider using bitflags crate
 /// A bitflag structure used in various parts of the PMX format.
 /// 8 flags per byte. 0 = off, 1 = on.
-// TODO(mate): consider using bitflags crate
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Flag {
     raw: u8,
 }
@@ -61,12 +63,52 @@ impl Flag {
     /// Get the state of a specific bit in the flag.
     ///
     /// Returns None if the bit is out of range (not 0-7).
-    pub fn try_get_state(&self, bit: u8) -> Option<bool> {
+    pub fn try_get_state(&self, bit: u8) -> Result<bool> {
         if bit >= 8 {
-            return None;
+            Err(Error::BitIndexOutOfRange)?;
         }
 
-        Some((self.raw & (1 << bit)) != 0)
+        Ok((self.raw & (1 << bit)) != 0)
+    }
+
+    pub fn set_state(&mut self, bit: u8, state: bool) {
+        debug_assert!(bit < 8, "Bit index must be 0-7, got {}", bit);
+
+        if state {
+            self.raw |= 1 << bit;
+        } else {
+            self.raw &= !(1 << bit);
+        }
+    }
+
+    pub fn try_set_state(&mut self, bit: u8, state: bool) -> Result<()> {
+        if bit >= 8 {
+            Err(Error::BitIndexOutOfRange)?;
+        }
+
+        if state {
+            self.raw |= 1 << bit;
+        } else {
+            self.raw &= !(1 << bit);
+        }
+
+        Ok(())
+    }
+
+    pub fn raw(&self) -> u8 {
+        self.raw
+    }
+}
+
+impl From<u8> for Flag {
+    fn from(raw: u8) -> Self {
+        Self { raw }
+    }
+}
+
+impl From<Flag> for u8 {
+    fn from(flag: Flag) -> Self {
+        flag.raw
     }
 }
 

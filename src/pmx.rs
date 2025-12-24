@@ -28,8 +28,10 @@ pub enum Error {
     LeftoverBytes { amount: usize, version: f32 },
     #[error("Unsupported file version: {version}")]
     UnsupportedVersion { version: f32 },
+
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
     #[error("Error parsing vertex: {0}")]
     Vertex(#[from] vertex::Error),
     #[error("PMX type error: {0}")]
@@ -40,7 +42,6 @@ pub enum Error {
     Texture(#[from] texture::Error),
     #[error("Material error: {0}")]
     Material(#[from] material::Error),
-
     #[error("Bone error: {0}")]
     Bone(#[from] bone::Error),
     #[error("Morph error: {0}")]
@@ -55,7 +56,12 @@ pub enum Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
+pub use bone::Error as BoneError;
+pub use frame::Error as FrameError;
+pub use joint::Error as JointError;
 pub use material::Error as MaterialError;
+pub use morph::Error as MorphError;
+pub use rb::Error as RbError;
 pub use surface::Error as SurfaceError;
 pub use texture::Error as TextureError;
 pub use types::Error as TypeError;

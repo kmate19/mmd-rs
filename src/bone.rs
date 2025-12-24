@@ -72,12 +72,34 @@ impl Bones {
     }
 }
 
+#[repr(u8)]
+pub enum BoneFlag {
+    IndexedTailPos,
+    Rotatable,
+    Translatable,
+    IsVisible,
+    Enabled,
+    IK,
+}
+
+#[repr(u8)]
+pub enum InheritFlag {
+    InheritRotation,
+    InheritTranslation,
+    FixedAxis,
+    LocalCoordinate,
+    PhysicsAfterDeform,
+    ExternalParentDeform,
+}
+
 #[derive(Debug)]
 pub struct Bone {
     name: PmxTextGroup,
     pos: Vec3,
     parent: Index,
     layer: i32,
+    /// Bone flags first array
+    /// Second array is inherit flags
     flags: [Flag; 2],
     tail_pos: TailPos,
     inherit: Option<InheritBone>,
@@ -88,6 +110,14 @@ pub struct Bone {
 }
 
 impl Bone {
+    pub fn has_bone_flag(&self, flag: BoneFlag) -> bool {
+        self.flags[0].get_state(flag as u8)
+    }
+
+    pub fn has_inherit_flag(&self, flag: InheritFlag) -> bool {
+        self.flags[1].get_state(flag as u8)
+    }
+
     pub fn name(&self) -> &PmxTextGroup {
         &self.name
     }

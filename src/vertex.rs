@@ -33,6 +33,7 @@ pub struct Vertices {
     len: usize,
 }
 
+// TODO(mate): lot of repeating on these container types, theyre basically all the same code
 impl PmxParseable for Vertices {
     type Error = Error;
 

@@ -74,6 +74,25 @@ impl Materials {
         self.inner.iter()
     }
 }
+#[repr(u8)]
+pub enum MaterialFlag {
+    /// Disables backface culling
+    NoCull,
+    /// Projects shadows onto geometry
+    GroundShadow,
+    /// Renders to shadow map
+    DrawShadow,
+    /// Receives shadows from other objects
+    ReceiveShadow,
+    /// Has a pencil outline
+    HasEdge,
+    /// Uses additional Vec4 1 for vertex color
+    VertexColor,
+    /// Uses point drawing
+    PointDraw,
+    /// Uses line drawing
+    LineDraw,
+}
 
 #[derive(Debug)]
 pub struct Material {
@@ -160,6 +179,10 @@ impl PmxParseable for Material {
 }
 
 impl Material {
+    pub fn has_flag(&self, flag: MaterialFlag) -> bool {
+        self.flags.get_state(flag as u8)
+    }
+
     pub fn env_blend(&self) -> &EnvBlendMode {
         &self.env_blend
     }
