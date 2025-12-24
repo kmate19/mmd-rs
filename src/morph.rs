@@ -181,9 +181,7 @@ impl PmxParseable for Morph {
         let reader = &mut parser.reader;
 
         let panel_type = reader.read_byte()?;
-
         let morph_type = reader.read_byte()?;
-
         let offset_len = reader.read_i32_le()?;
 
         let offset_data = if offset_len > 0 {
@@ -195,7 +193,7 @@ impl PmxParseable for Morph {
                         // Group Morph
 
                         let morph = GroupMorph {
-                            index: Index::create(reader, globals.morph_idx_size.try_into()?, true)?,
+                            index: Index::parse_morph(reader, globals.morph_idx_size)?,
                             influence: reader.read_f32_le()?,
                         };
 
@@ -205,7 +203,7 @@ impl PmxParseable for Morph {
                         // Vertex Morph
 
                         let morph = VertexMorph {
-                            index: Index::create(reader, globals.vert_idx_size.try_into()?, false)?,
+                            index: Index::parse_vertex(reader, globals.vert_idx_size)?,
                             translation: f32_array_from_le_bytes!(3, reader).into(),
                         };
 
@@ -215,7 +213,7 @@ impl PmxParseable for Morph {
                         // Bone Morph
 
                         let morph = BoneMorph {
-                            index: Index::create(reader, globals.bone_idx_size.try_into()?, true)?,
+                            index: Index::parse_bone(reader, globals.bone_idx_size)?,
                             translation: f32_array_from_le_bytes!(3, reader).into(),
                             rotation: f32_array_from_le_bytes!(4, reader).into(),
                         };
@@ -226,7 +224,7 @@ impl PmxParseable for Morph {
                         // UV Morph
 
                         let morph = UVMorph {
-                            index: Index::create(reader, globals.vert_idx_size.try_into()?, false)?,
+                            index: Index::parse_vertex(reader, globals.vert_idx_size)?,
                             uv_offset: f32_array_from_le_bytes!(4, reader).into(),
                         };
 
@@ -236,11 +234,7 @@ impl PmxParseable for Morph {
                         // Material Morph
 
                         let morph = MaterialMorph {
-                            index: Index::create(
-                                reader,
-                                globals.material_idx_size.try_into()?,
-                                true,
-                            )?,
+                            index: Index::parse_material(reader, globals.material_idx_size)?,
                             operation: reader.read_byte()?,
                             diffuse: f32_array_from_le_bytes!(4, reader).into(),
                             specular: f32_array_from_le_bytes!(3, reader).into(),
@@ -259,7 +253,7 @@ impl PmxParseable for Morph {
                         // Flip Morph
 
                         let morph = FlipMorph {
-                            index: Index::create(reader, globals.morph_idx_size.try_into()?, true)?,
+                            index: Index::parse_morph(reader, globals.morph_idx_size)?,
                             influence: reader.read_f32_le()?,
                         };
 
@@ -269,7 +263,7 @@ impl PmxParseable for Morph {
                         // Impulse Morph
 
                         let morph = ImpulseMorph {
-                            index: Index::create(reader, globals.rb_idx_size.try_into()?, true)?,
+                            index: Index::parse_rigidbody(reader, globals.rb_idx_size)?,
                             is_local: reader.read_byte()? != 0,
                             velocity: f32_array_from_le_bytes!(3, reader).into(),
                             angular_velocity: f32_array_from_le_bytes!(3, reader).into(),

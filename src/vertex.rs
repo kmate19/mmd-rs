@@ -136,12 +136,8 @@ impl PmxParseable for Vertex {
 
         let weight_deform_type = reader.read_byte()?;
 
-        let weight_deform = WeightDeform::create(
-            reader,
-            weight_deform_type,
-            globals.vert_idx_size.try_into()?,
-            true,
-        )?;
+        let weight_deform =
+            WeightDeform::create(reader, weight_deform_type, globals.bone_idx_size)?;
 
         let edge_scale = reader.read_f32_le()?;
 
@@ -194,17 +190,17 @@ pub enum WeightDeform {
 }
 
 impl WeightDeform {
-    fn create(reader: &mut impl Read, typ: u8, size: IndexSize, index_sign: bool) -> Result<Self> {
+    fn create(reader: &mut impl Read, typ: u8, bone_index_size: IndexSize) -> Result<Self> {
         match typ {
             0 => {
-                let index = Index::create(reader, size, index_sign)?;
+                let index = Index::parse_bone(reader, bone_index_size)?;
 
                 Ok(WeightDeform::Bdef1 { index })
             }
             1 => {
                 let indices = [
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
                 ];
 
                 let mut weights = [0.0; 2];
@@ -223,10 +219,10 @@ impl WeightDeform {
             }
             2 => {
                 let indices = [
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
                 ];
 
                 let weights = f32_array_from_le_bytes!(4, reader);
@@ -235,8 +231,8 @@ impl WeightDeform {
             }
             3 => {
                 let indices = [
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
                 ];
 
                 let mut weights = [0.0; 2];
@@ -275,10 +271,10 @@ impl WeightDeform {
             }
             4 => {
                 let indices = [
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
-                    Index::create(reader, size, index_sign)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
+                    Index::parse_bone(reader, bone_index_size)?,
                 ];
 
                 let weights = f32_array_from_le_bytes!(4, reader);

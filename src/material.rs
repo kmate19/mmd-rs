@@ -88,6 +88,7 @@ pub struct Material {
     tex_idx: Index,
     env_idx: Index,
     env_blend: EnvBlendMode,
+    toon_ref: ToonRef,
     toon: Toon,
     meta: PmxText,
     surface_count: i32,
@@ -104,9 +105,7 @@ impl PmxParseable for Material {
 
             let diffuse: Vec4 = f32_array_from_le_bytes!(4, reader).into();
             let specular: Vec3 = f32_array_from_le_bytes!(3, reader).into();
-
             let specular_strength = reader.read_f32_le()?;
-
             let ambient: Vec3 = f32_array_from_le_bytes!(3, reader).into();
 
             (diffuse, specular, specular_strength, ambient)
@@ -114,31 +113,26 @@ impl PmxParseable for Material {
 
         let flags = parser.parse()?;
 
-        let (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon) = {
+        let (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon_ref, toon) = {
             let reader = &mut parser.reader;
 
             let edge_color: Vec4 = f32_array_from_le_bytes!(4, reader).into();
-
             let edge_scale = reader.read_f32_le()?;
-
-            let tex_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
-
-            let env_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
-
+            let tex_idx = Index::parse_texture(reader, globals.tex_idx_size)?;
+            let env_idx = Index::parse_texture(reader, globals.tex_idx_size)?;
             let env_blend = reader.read_byte()?.try_into()?;
-
-            // NOTE(mate): we dont store this on the struct since its only used to determine how to read the toon value
             let toon_ref = reader.read_byte()?.try_into()?;
-
             let toon = match toon_ref {
                 ToonRef::Texture => {
-                    let toon_idx = Index::create(reader, globals.tex_idx_size.try_into()?, true)?;
+                    let toon_idx = Index::parse_texture(reader, globals.tex_idx_size)?;
                     Toon::Texture(toon_idx)
                 }
                 ToonRef::Internal => Toon::Internal(reader.read_byte()?),
             };
 
-            (edge_color, edge_scale, tex_idx, env_idx, env_blend, toon)
+            (
+                edge_color, edge_scale, tex_idx, env_idx, env_blend, toon_ref, toon,
+            )
         };
 
         let meta = parser.parse()?;
@@ -157,6 +151,7 @@ impl PmxParseable for Material {
             tex_idx,
             env_idx,
             env_blend,
+            toon_ref,
             toon,
             meta,
             surface_count,
@@ -220,6 +215,10 @@ impl Material {
     pub fn surface_count(&self) -> i32 {
         self.surface_count
     }
+
+    pub fn toon_ref(&self) -> &ToonRef {
+        &self.toon_ref
+    }
 }
 
 #[derive(Debug)]
@@ -248,7 +247,8 @@ impl TryFrom<u8> for EnvBlendMode {
     }
 }
 
-enum ToonRef {
+#[derive(Debug)]
+pub enum ToonRef {
     Texture,
     Internal,
 }

@@ -11,7 +11,7 @@ use crate::{
     bone, frame, joint, material, morph,
     parser::Parser,
     rb, surface, texture,
-    types::{self, PmxTextGroup, TextEncoding},
+    types::{self, IndexSize, PmxTextGroup, TextEncoding},
     util::ReadExt,
     vertex,
 };
@@ -334,12 +334,12 @@ impl Header {
 pub struct Globals {
     pub(crate) encoding: TextEncoding,
     pub(crate) vec4_additional: u8,
-    pub(crate) vert_idx_size: u8,
-    pub(crate) tex_idx_size: u8,
-    pub(crate) material_idx_size: u8,
-    pub(crate) bone_idx_size: u8,
-    pub(crate) morph_idx_size: u8,
-    pub(crate) rb_idx_size: u8,
+    pub(crate) vert_idx_size: IndexSize,
+    pub(crate) tex_idx_size: IndexSize,
+    pub(crate) material_idx_size: IndexSize,
+    pub(crate) bone_idx_size: IndexSize,
+    pub(crate) morph_idx_size: IndexSize,
+    pub(crate) rb_idx_size: IndexSize,
     /// Store additional fields here that we don't know the specific purpose of right now.
     #[allow(dead_code, reason = "we don't have a use for these yet")]
     pub(crate) additional: Option<Vec<u8>>,
@@ -367,12 +367,12 @@ impl Globals {
         Ok(Self {
             encoding: globals[0].try_into()?,
             vec4_additional: globals[1],
-            vert_idx_size: globals[2],
-            tex_idx_size: globals[3],
-            material_idx_size: globals[4],
-            bone_idx_size: globals[5],
-            morph_idx_size: globals[6],
-            rb_idx_size: globals[7],
+            vert_idx_size: globals[2].try_into()?,
+            tex_idx_size: globals[3].try_into()?,
+            material_idx_size: globals[4].try_into()?,
+            bone_idx_size: globals[5].try_into()?,
+            morph_idx_size: globals[6].try_into()?,
+            rb_idx_size: globals[7].try_into()?,
             additional,
         })
     }

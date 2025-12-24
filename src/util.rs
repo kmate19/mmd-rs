@@ -46,6 +46,13 @@ pub(crate) trait ReadExt: Read {
     }
 
     #[inline]
+    fn read_i8(&mut self) -> std::io::Result<i8> {
+        let mut buf = [0; 1];
+        self.read_exact(&mut buf)?;
+        Ok(buf[0] as i8)
+    }
+
+    #[inline]
     fn read_i32_le(&mut self) -> std::io::Result<i32> {
         let mut buf = [0; std::mem::size_of::<i32>()];
 
@@ -61,6 +68,15 @@ pub(crate) trait ReadExt: Read {
         self.read_exact(&mut buf)?;
 
         Ok(i16::from_le_bytes(buf))
+    }
+
+    #[inline]
+    fn read_u16_le(&mut self) -> std::io::Result<u16> {
+        let mut buf = [0; std::mem::size_of::<u16>()];
+
+        self.read_exact(&mut buf)?;
+
+        Ok(u16::from_le_bytes(buf))
     }
 
     #[inline]

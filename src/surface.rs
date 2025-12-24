@@ -83,8 +83,7 @@ impl PmxParseable for Surface {
     type Error = Error;
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
-        // NOTE(mate): not implementing our usual trait and pattern here because this type is simply a nightmare to generalize over
-        let index = Index::create(&mut parser.reader, globals.vert_idx_size.try_into()?, false)?;
+        let index = Index::parse_vertex(&mut parser.reader, globals.vert_idx_size)?;
 
         Ok(Self { index })
     }

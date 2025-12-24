@@ -109,11 +109,9 @@ impl PmxParseable for Frame {
 
     fn parse<R: Read>(parser: &mut Parser<R, Pmx>, globals: &Globals) -> Result<Self> {
         let name = parser.parse()?;
-
         let reader = &mut parser.reader;
 
         let special = reader.read_byte()? != 0;
-
         let frame_len = reader.read_i32_le()?;
 
         let frames = {
@@ -124,15 +122,12 @@ impl PmxParseable for Frame {
                     let frame_type = reader.read_byte()?;
 
                     let data_inner = match frame_type {
-                        0 => FrameDataInner::Bone(Index::create(
+                        0 => {
+                            FrameDataInner::Bone(Index::parse_bone(reader, globals.bone_idx_size)?)
+                        }
+                        1 => FrameDataInner::Morph(Index::parse_morph(
                             reader,
-                            globals.bone_idx_size.try_into()?,
-                            true,
-                        )?),
-                        1 => FrameDataInner::Morph(Index::create(
-                            reader,
-                            globals.morph_idx_size.try_into()?,
-                            true,
+                            globals.morph_idx_size,
                         )?),
                         _ => Err(Error::InvalidFrameType)?,
                     };

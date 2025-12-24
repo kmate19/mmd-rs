@@ -1,5 +1,5 @@
 use core::fmt;
-use std::io::Read;
+use std::{io::Read, ops::Deref};
 
 use thiserror::Error;
 
@@ -218,11 +218,19 @@ impl PmxTextGroup {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+// Index Types
+// Name	        Type 1	Type 2	Type 4	Nil Value
+// Vertex	    ubyte	ushort	int	    N/A
+// Bone	        byte	short	int     -1
+// Texture	    byte	short	int	    -1
+// Material	    byte	short	int	    -1
+// Morph	    byte	short	int	    -1
+// Rigidbody	byte	short	int	    -1
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum IndexSize {
-    Size1([u8; 1]),
-    Size2([u8; 2]),
-    Size4([u8; 4]),
+    Size1,
+    Size2,
+    Size4,
 }
 
 impl TryFrom<u8> for IndexSize {
@@ -230,14 +238,15 @@ impl TryFrom<u8> for IndexSize {
 
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
-            1 => Ok(Self::Size1([0; 1])),
-            2 => Ok(Self::Size2([0; 2])),
-            4 => Ok(Self::Size4([0; 4])),
+            1 => Ok(Self::Size1),
+            2 => Ok(Self::Size2),
+            4 => Ok(Self::Size4),
             _ => Err(Error::IndexSizeMismatch),
         }
     }
 }
 
+// TODO(mate): consider reworking this type
 #[derive(Debug)]
 pub struct Index {
     size: IndexSize,
@@ -246,6 +255,10 @@ pub struct Index {
 }
 
 impl Index {
+    /// Get the integer value of the index.
+    ///
+    /// This type actually has several sizes (1, 2, or 4 bytes) and can be signed or unsigned depending on context.
+    /// However all values that it can represent fit into an i32, so this method returns an i32 for simplicity.
     pub fn value(&self) -> i32 {
         self.value
     }
@@ -254,32 +267,71 @@ impl Index {
         self.value == -1
     }
 
-    pub(crate) fn create(reader: &mut impl Read, mut size: IndexSize, sign: bool) -> Result<Self> {
-        // read data into the index
-        match &mut size {
-            IndexSize::Size1(raw) => reader.read_exact(raw)?,
-            IndexSize::Size2(raw) => reader.read_exact(raw)?,
-            IndexSize::Size4(raw) => reader.read_exact(raw)?,
+    pub fn size(&self) -> IndexSize {
+        self.size
+    }
+
+    pub fn sign(&self) -> bool {
+        self.sign
+    }
+
+    #[inline]
+    pub(crate) fn parse_vertex(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_unsigned(reader, size)
+    }
+
+    #[inline]
+    pub(crate) fn parse_bone(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_signed(reader, size)
+    }
+
+    #[inline]
+    pub(crate) fn parse_texture(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_signed(reader, size)
+    }
+
+    #[inline]
+    pub(crate) fn parse_material(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_signed(reader, size)
+    }
+
+    #[inline]
+    pub(crate) fn parse_morph(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_signed(reader, size)
+    }
+
+    #[inline]
+    pub(crate) fn parse_rigidbody(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        Self::create_signed(reader, size)
+    }
+
+    #[inline]
+    fn create_unsigned(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        let value = match size {
+            IndexSize::Size1 => reader.read_byte()? as i32,
+            IndexSize::Size2 => reader.read_u16_le()? as i32,
+            IndexSize::Size4 => reader.read_i32_le()?,
         };
 
-        let value = match &size {
-            IndexSize::Size1(raw) => {
-                if sign {
-                    i8::from_le_bytes(*raw) as i32
-                } else {
-                    u8::from_le_bytes(*raw) as i32
-                }
-            }
-            IndexSize::Size2(raw) => {
-                if sign {
-                    i16::from_le_bytes(*raw) as i32
-                } else {
-                    u16::from_le_bytes(*raw) as i32
-                }
-            }
-            IndexSize::Size4(raw) => i32::from_le_bytes(*raw),
+        Ok(Self {
+            size,
+            value,
+            sign: false,
+        })
+    }
+
+    #[inline]
+    fn create_signed(reader: &mut impl Read, size: IndexSize) -> Result<Self> {
+        let value = match size {
+            IndexSize::Size1 => reader.read_i8()? as i32,
+            IndexSize::Size2 => reader.read_i16_le()? as i32,
+            IndexSize::Size4 => reader.read_i32_le()?,
         };
 
-        Ok(Self { size, value, sign })
+        Ok(Self {
+            size,
+            value,
+            sign: true,
+        })
     }
 }

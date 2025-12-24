@@ -125,8 +125,8 @@ impl PmxParseable for Joint {
         let reader = &mut parser.reader;
 
         let typ = reader.read_byte()?.try_into()?;
-        let rb_index_a = Index::create(reader, globals.rb_idx_size.try_into()?, true)?;
-        let rb_index_b = Index::create(reader, globals.rb_idx_size.try_into()?, true)?;
+        let rb_index_a = Index::parse_rigidbody(reader, globals.rb_idx_size)?;
+        let rb_index_b = Index::parse_rigidbody(reader, globals.rb_idx_size)?;
         let pos = f32_array_from_le_bytes!(3, reader).into();
         let rotation = f32_array_from_le_bytes!(3, reader).into();
         let pos_min = f32_array_from_le_bytes!(3, reader).into();

@@ -151,30 +151,18 @@ impl PmxParseable for RigidBody {
 
         let reader = &mut parser.reader;
 
-        let related_bone_index = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
-
+        let related_bone_index = Index::parse_bone(reader, globals.bone_idx_size)?;
         let group_id = reader.read_byte()?;
-
         let non_collision_group = reader.read_i16_le()?;
-
         let shape = reader.read_byte()?.try_into()?;
-
         let shape_size = f32_array_from_le_bytes!(3, reader).into();
-
         let shape_pos = f32_array_from_le_bytes!(3, reader).into();
-
         let shape_rotation = f32_array_from_le_bytes!(3, reader).into();
-
         let mass = reader.read_f32_le()?;
-
         let move_attentuation = reader.read_f32_le()?;
-
         let rotation_damping = reader.read_f32_le()?;
-
         let repulsion = reader.read_f32_le()?;
-
         let friction = reader.read_f32_le()?;
-
         let physics_mode = reader.read_byte()?.try_into()?;
 
         Ok(Self {

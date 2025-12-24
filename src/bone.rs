@@ -188,11 +188,8 @@ impl PmxParseable for Bone {
 
         let (pos, parent, layer) = {
             let reader = &mut parser.reader;
-
             let pos = f32_array_from_le_bytes!(3, reader).into();
-
-            let parent = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
-
+            let parent = Index::parse_bone(reader, globals.bone_idx_size)?;
             let layer = reader.read_i32_le()?;
 
             (pos, parent, layer)
@@ -221,18 +218,14 @@ impl PmxParseable for Bone {
         let reader = &mut parser.reader;
 
         let tail_pos = if flags[0].get_state(0) {
-            TailPos::Bone(Index::create(
-                reader,
-                globals.bone_idx_size.try_into()?,
-                true,
-            )?)
+            TailPos::Bone(Index::parse_bone(reader, globals.bone_idx_size)?)
         } else {
             TailPos::Offset(f32_array_from_le_bytes!(3, reader).into())
         };
 
         let inherit = if flags[1].get_state(0) || flags[1].get_state(1) {
             Some(InheritBone {
-                parent: Index::create(reader, globals.bone_idx_size.try_into()?, true)?,
+                parent: Index::parse_bone(reader, globals.bone_idx_size)?,
                 parent_influence: reader.read_f32_le()?,
             })
         } else {
@@ -257,29 +250,22 @@ impl PmxParseable for Bone {
         };
 
         let external_parent = if flags[1].get_state(5) {
-            Some(Index::create(
-                reader,
-                globals.bone_idx_size.try_into()?,
-                true,
-            )?)
+            Some(Index::parse_bone(reader, globals.bone_idx_size)?)
         } else {
             None
         };
 
         let ik = if flags[0].get_state(5) {
-            let target = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
-
+            let target = Index::parse_bone(reader, globals.bone_idx_size)?;
             let loop_count = reader.read_i32_le()?;
-
             let limit_rad = reader.read_f32_le()?;
-
             let link_count = reader.read_i32_le()?;
 
             let links = if link_count > 0 {
                 let mut v = Vec::with_capacity(link_count as _);
 
                 for _ in 0..link_count {
-                    let index = Index::create(reader, globals.bone_idx_size.try_into()?, true)?;
+                    let index = Index::parse_bone(reader, globals.bone_idx_size)?;
 
                     let limits = reader.read_byte()? != 0;
 
