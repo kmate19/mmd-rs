@@ -1,14 +1,14 @@
 use core::fmt;
 
 use std::{
-    io::{BufReader, Read},
+    io::{BufReader, ErrorKind, Read},
     path::Path,
 };
 
 use thiserror::Error;
 
 use crate::{
-    bone, frame, material, morph,
+    bone, frame, joint, material, morph,
     parser::Parser,
     rb, surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
@@ -22,6 +22,10 @@ pub enum Error {
     InvalidTag,
     #[error("Invalid global variable amount, must be at least 8")]
     InvalidGlobalCount,
+    #[error("Leftover bytes in file after parsing {amount} for version {version}")]
+    LeftoverBytes { amount: usize, version: f32 },
+    #[error("Unsupported file version: {version}")]
+    UnsupportedVersion { version: f32 },
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
     #[error("Error parsing vertex: {0}")]
@@ -34,6 +38,7 @@ pub enum Error {
     Texture(#[from] texture::Error),
     #[error("Material error: {0}")]
     Material(#[from] material::Error),
+
     #[error("Bone error: {0}")]
     Bone(#[from] bone::Error),
     #[error("Morph error: {0}")]
@@ -42,6 +47,8 @@ pub enum Error {
     Frame(#[from] frame::Error),
     #[error("Rigidbody error: {0}")]
     Rb(#[from] rb::Error),
+    #[error("Joint error: {0}")]
+    Joint(#[from] joint::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -64,6 +71,7 @@ pub struct Pmx {
     morphs: morph::Morphs,
     frames: frame::Frames,
     rigid_bodies: rb::RigidBodies,
+    joints: joint::Joints,
 }
 
 impl fmt::Debug for Pmx {
@@ -102,6 +110,10 @@ impl fmt::Debug for Pmx {
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.rigid_bodies.len()
             ))
+            .field("joints", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.joints.len()
+            ))
             .finish()
     }
 }
@@ -123,6 +135,12 @@ impl Pmx {
 
         let header = parser.parse_header()?;
 
+        if header.version != 2.0 && header.version != 2.1 {
+            Err(Error::UnsupportedVersion {
+                version: header.version,
+            })?
+        }
+
         let vertices = parser.parse()?;
 
         let surfaces = parser.parse()?;
@@ -138,17 +156,31 @@ impl Pmx {
 
         let rigid_bodies = parser.parse()?;
 
-        Ok(Pmx {
-            header,
-            vertices,
-            surfaces,
-            materials,
-            textures,
-            bones,
-            morphs,
-            frames,
-            rigid_bodies,
-        })
+        let joints = parser.parse()?;
+
+        if header.version == 2.1 {
+            // TODO(mate): but the soft body parsing here
+        }
+
+        match parser.reader.read_byte() {
+            Err(err) if err.kind() == ErrorKind::UnexpectedEof => Ok(Pmx {
+                header,
+                vertices,
+                surfaces,
+                materials,
+                textures,
+                bones,
+                morphs,
+                frames,
+                rigid_bodies,
+                joints,
+            }),
+            Err(err) => Err(err)?,
+            Ok(_) => Err(Error::LeftoverBytes {
+                amount: parser.reader.bytes().count() + 1,
+                version: header.version,
+            })?,
+        }
     }
 
     /// Get the PMX file header.
@@ -265,6 +297,10 @@ impl Pmx {
 
     pub fn rigid_bodies(&self) -> &rb::RigidBodies {
         &self.rigid_bodies
+    }
+
+    pub fn joints(&self) -> &joint::Joints {
+        &self.joints
     }
 }
 
