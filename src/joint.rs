@@ -52,7 +52,7 @@ impl PmxParseable for Joints {
 
         debug_assert!(
             inner_vec.len() == size,
-            "the parsed surface count does not match the expected size"
+            "the parsed joint count does not match the expected size"
         );
 
         Ok(Self {

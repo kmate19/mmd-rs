@@ -16,6 +16,7 @@ mod morph;
 mod parser;
 pub mod pmx;
 mod rb;
+mod sb;
 mod surface;
 mod texture;
 mod types;

@@ -10,7 +10,9 @@ use thiserror::Error;
 use crate::{
     bone, frame, joint, material, morph,
     parser::Parser,
-    rb, surface, texture,
+    rb,
+    sb::{self, SoftBodies},
+    surface, texture,
     types::{self, IndexSize, PmxTextGroup, TextEncoding},
     util::ReadExt,
     vertex,
@@ -52,6 +54,8 @@ pub enum Error {
     Rb(#[from] rb::Error),
     #[error("Joint error: {0}")]
     Joint(#[from] joint::Error),
+    #[error("Softbody error: {0}")]
+    Sb(#[from] sb::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -62,6 +66,7 @@ pub use joint::Error as JointError;
 pub use material::Error as MaterialError;
 pub use morph::Error as MorphError;
 pub use rb::Error as RbError;
+pub use sb::Error as SoftBodyError;
 pub use surface::Error as SurfaceError;
 pub use texture::Error as TextureError;
 pub use types::Error as TypeError;
@@ -80,6 +85,8 @@ pub struct Pmx {
     frames: frame::Frames,
     rigid_bodies: rb::RigidBodies,
     joints: joint::Joints,
+    /// Soft bodies are only present in PMX version 2.1 and above.
+    soft_bodies: Option<SoftBodies>,
 }
 
 impl fmt::Debug for Pmx {
@@ -122,6 +129,16 @@ impl fmt::Debug for Pmx {
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.joints.len()
             ))
+            .field(
+                "soft_bodies",
+                &match &self.soft_bodies {
+                    Some(sb) => format!(
+                        "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                        sb.len()
+                    ),
+                    None => "None".to_string(),
+                },
+            )
             .finish()
     }
 }
@@ -166,9 +183,11 @@ impl Pmx {
 
         let joints = parser.parse()?;
 
-        if header.version == 2.1 {
-            // TODO(mate): but the soft body parsing here
-        }
+        let soft_bodies = if header.version == 2.1 {
+            Some(parser.parse()?)
+        } else {
+            None
+        };
 
         match parser.reader.read_byte() {
             Err(err) if err.kind() == ErrorKind::UnexpectedEof => Ok(Pmx {
@@ -182,6 +201,7 @@ impl Pmx {
                 frames,
                 rigid_bodies,
                 joints,
+                soft_bodies,
             }),
             Err(err) => Err(err)?,
             Ok(_) => Err(Error::LeftoverBytes {
