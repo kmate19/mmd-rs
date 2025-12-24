@@ -27,7 +27,7 @@ println!("Model name: {}", pmx.header().name());
 - [x] Surface parsing
 - [x] Bone support
 - [x] Morph support
-- [ ] Display Frame support
+- [x] Display Frame support
 - [ ] Physics support (rigid bodies, joints, soft bodies)
 - [ ] Documentation
 - [ ] Examples

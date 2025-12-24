@@ -10,7 +10,7 @@ use thiserror::Error;
 use crate::{
     bone, frame, material, morph,
     parser::Parser,
-    surface, texture,
+    rb, surface, texture,
     types::{self, PmxTextGroup, TextEncoding},
     vertex,
 };
@@ -39,6 +39,8 @@ pub enum Error {
     Morph(#[from] morph::Error),
     #[error("Frame error: {0}")]
     Frame(#[from] frame::Error),
+    #[error("Rigidbody error: {0}")]
+    Rb(#[from] rb::Error),
 }
 
 type Result<T> = std::result::Result<T, Error>;
@@ -60,6 +62,7 @@ pub struct Pmx {
     bones: bone::Bones,
     morphs: morph::Morphs,
     frames: frame::Frames,
+    rigid_bodies: rb::RigidBodies,
 }
 
 impl fmt::Debug for Pmx {
@@ -93,6 +96,10 @@ impl fmt::Debug for Pmx {
             .field("frames", &format!(
                 "<truncated, print the field separately if you want to see raw contents> (size: {})",
                 self.morphs.len()
+            ))
+            .field("rigid_bodies", &format!(
+                "<truncated, print the field separately if you want to see raw contents> (size: {})",
+                self.rigid_bodies.len()
             ))
             .finish()
     }
@@ -128,6 +135,8 @@ impl Pmx {
 
         let frames = parser.parse()?;
 
+        let rigid_bodies = parser.parse()?;
+
         Ok(Pmx {
             header,
             vertices,
@@ -137,6 +146,7 @@ impl Pmx {
             bones,
             morphs,
             frames,
+            rigid_bodies,
         })
     }
 
