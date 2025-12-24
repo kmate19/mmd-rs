@@ -88,6 +88,56 @@ pub struct Joint {
     spring_rotation: Vec3,
 }
 
+impl Joint {
+    pub fn name(&self) -> &PmxTextGroup {
+        &self.name
+    }
+
+    pub fn typ(&self) -> &JointType {
+        &self.typ
+    }
+
+    pub fn rb_index_a(&self) -> &Index {
+        &self.rb_index_a
+    }
+
+    pub fn rb_index_b(&self) -> &Index {
+        &self.rb_index_b
+    }
+
+    pub fn pos(&self) -> Vec3 {
+        self.pos
+    }
+
+    pub fn rotation(&self) -> Vec3 {
+        self.rotation
+    }
+
+    pub fn pos_min(&self) -> Vec3 {
+        self.pos_min
+    }
+
+    pub fn pos_max(&self) -> Vec3 {
+        self.pos_max
+    }
+
+    pub fn rotation_min(&self) -> Vec3 {
+        self.rotation_min
+    }
+
+    pub fn rotation_max(&self) -> Vec3 {
+        self.rotation_max
+    }
+
+    pub fn spring_pos(&self) -> Vec3 {
+        self.spring_pos
+    }
+
+    pub fn spring_rotation(&self) -> Vec3 {
+        self.spring_rotation
+    }
+}
+
 #[derive(Debug)]
 pub enum JointType {
     SpringSixDOF,

@@ -97,6 +97,58 @@ impl RigidBody {
     pub fn name(&self) -> &PmxTextGroup {
         &self.name
     }
+
+    pub fn related_bone_index(&self) -> &Index {
+        &self.related_bone_index
+    }
+
+    pub fn group_id(&self) -> i8 {
+        self.group_id
+    }
+
+    pub fn non_collision_group(&self) -> &i16 {
+        &self.non_collision_group
+    }
+
+    pub fn shape(&self) -> &Shape {
+        &self.shape
+    }
+
+    pub fn shape_size(&self) -> Vec3 {
+        self.shape_size
+    }
+
+    pub fn shape_pos(&self) -> Vec3 {
+        self.shape_pos
+    }
+
+    pub fn shape_rotation(&self) -> Vec3 {
+        self.shape_rotation
+    }
+
+    pub fn mass(&self) -> f32 {
+        self.mass
+    }
+
+    pub fn move_attentuation(&self) -> f32 {
+        self.move_attentuation
+    }
+
+    pub fn rotation_damping(&self) -> f32 {
+        self.rotation_damping
+    }
+
+    pub fn repulsion(&self) -> f32 {
+        self.repulsion
+    }
+
+    pub fn friction(&self) -> f32 {
+        self.friction
+    }
+
+    pub fn physics_mode(&self) -> &PhysicsMode {
+        &self.physics_mode
+    }
 }
 
 #[derive(Debug)]

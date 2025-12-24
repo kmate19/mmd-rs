@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{io::Read, ops::Deref};
+use std::io::Read;
 
 use thiserror::Error;
 
