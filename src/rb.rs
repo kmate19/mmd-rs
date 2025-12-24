@@ -17,6 +17,8 @@ pub enum Error {
     NegativeSize,
     #[error("Invalid physics mode type")]
     InvalidPhysicsMode,
+    #[error("Invalid shape")]
+    InvalidShape,
     #[error(transparent)]
     Type(#[from] crate::types::Error),
     #[error(transparent)]
@@ -79,7 +81,7 @@ pub struct RigidBody {
     related_bone_index: Index,
     group_id: u8,
     non_collision_group: i16,
-    shape: u8,
+    shape: Shape,
     shape_size: Vec3,
     shape_pos: Vec3,
     shape_rotation: Vec3,
@@ -94,6 +96,28 @@ pub struct RigidBody {
 impl RigidBody {
     pub fn name(&self) -> &PmxTextGroup {
         &self.name
+    }
+}
+
+#[derive(Debug)]
+pub enum Shape {
+    Sphere,
+    Box,
+    Capsule,
+}
+
+impl TryFrom<u8> for Shape {
+    type Error = Error;
+
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        let ok = match value {
+            0 => Self::Sphere,
+            1 => Self::Box,
+            2 => Self::Capsule,
+            _ => Err(Error::InvalidShape)?,
+        };
+
+        Ok(ok)
     }
 }
 
@@ -133,7 +157,7 @@ impl PmxParseable for RigidBody {
 
         let non_collision_group = reader.read_i16_le()?;
 
-        let shape = reader.read_byte()?;
+        let shape = reader.read_byte()?.try_into()?;
 
         let shape_size = f32_array_from_le_bytes!(3, reader).into();
 
