@@ -13,7 +13,9 @@ readme = "README.md"
 [dependencies]
 thiserror = "2.0.17"
 glam = { version = "0.30.9", optional = true }
+eframe = { version = "0.33.3", optional = true }
 
 [features]
-default = ["math_glam"]
+default = ["math_glam","ui"]
 math_glam = ["glam"]
+ui = ["eframe"]

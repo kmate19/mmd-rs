@@ -8,6 +8,9 @@ pub type Vec4 = [f32; 4];
 #[cfg(feature = "math_glam")]
 pub use glam::{Vec2, Vec3, Vec4};
 
+#[cfg(feature = "ui")]
+pub mod ui;
+
 mod bone;
 mod frame;
 mod joint;

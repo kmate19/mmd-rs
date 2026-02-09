@@ -14,5 +14,10 @@ fn main() {
 
     let pmx = Pmx::open(&path).unwrap();
 
-    dbg!(&pmx);
+    #[cfg(debug_assertions)]
+    {
+        dbg!(&pmx);
+        #[cfg(feature = "ui")]
+        mmd_rs::ui::start(std::sync::Arc::new(pmx));
+    }
 }
