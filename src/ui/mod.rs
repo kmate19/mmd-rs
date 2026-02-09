@@ -58,7 +58,7 @@ impl App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            egui::ScrollArea::vertical().show(ui, |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
                 let show_local_button_text = if self.show_local_text {
                     "Hide local text"
                 } else {
@@ -73,14 +73,51 @@ impl eframe::App for App {
 
                 ui.heading(format!("Viewing model: {model_name}",));
 
+                ui.heading("Comment:");
                 // show comment
                 let model_comment = self.select_text(self.model.header().comment());
-                ui.label(format!("Comment: {model_comment}"));
+                ui.label(model_comment);
 
+                ui.heading("Textures:");
                 for (i, texture) in self.model.textures().iter().enumerate() {
-                    ui.label(format!("Texture {i}: {}", texture.path()));
+                    ui.horizontal(|ui| {
+                        ui.label(format!("Texture {i}:"));
+
+                        if ui.link(texture.path().as_str()).clicked() {
+                            #[cfg(target_os = "windows")]
+                            {
+                                std::process::Command::new("explorer")
+                                    .arg("/select,")
+                                    .arg(dbg!(self.model.base_path().join(texture.path().as_str())))
+                                    .spawn()
+                                    .expect("Failed to open texture path");
+                            }
+                            #[cfg(target_os = "macos")]
+                            {
+                                std::process::Command::new("open")
+                                    .arg("-R")
+                                    .arg(dbg!(self.model.base_path().join(texture.path().as_str())))
+                                    .spawn()
+                                    .expect("Failed to open texture path");
+                            }
+                            #[cfg(target_os = "linux")]
+                            {
+                                std::process::Command::new("xdg-open")
+                                    .arg(dbg!(
+                                        self.model
+                                            .base_path()
+                                            .join(texture.path().as_str())
+                                            .parent()
+                                            .unwrap()
+                                    ))
+                                    .spawn()
+                                    .expect("Failed to open texture path");
+                            }
+                        };
+                    });
                 }
 
+                ui.heading("Materials:");
                 for (i, material) in self.model.materials().iter().enumerate() {
                     let mat_name = self.select_text(material.name());
 

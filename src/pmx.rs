@@ -2,7 +2,7 @@ use core::fmt;
 
 use std::{
     io::{BufReader, ErrorKind, Read},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use thiserror::Error;
@@ -83,6 +83,7 @@ pub mod flags {
 /// The main PMX structure representing a parsed PMX file.
 /// Can be created using the `Pmx::open` function.
 pub struct Pmx {
+    base_path: PathBuf,
     header: Header,
     vertices: vertex::Vertices,
     surfaces: surface::Surfaces,
@@ -100,6 +101,7 @@ pub struct Pmx {
 impl fmt::Debug for Pmx {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Pmx")
+            .field("base_path", &self.base_path)
             .field("header", &self.header)
             .field(
                 "vertices",
@@ -162,6 +164,8 @@ impl Pmx {
     ///
     /// This function can fail from standard IO errors, as well as parsing errors related to the PMX file.
     pub fn open(path: impl AsRef<Path>) -> Result<Self> {
+        let base_path = path.as_ref().parent().unwrap().to_path_buf();
+
         let fh = std::fs::File::open(path)?;
         let reader = BufReader::new(fh);
         let mut parser = Parser::new(reader);
@@ -199,6 +203,7 @@ impl Pmx {
 
         match parser.reader.read_byte() {
             Err(err) if err.kind() == ErrorKind::UnexpectedEof => Ok(Pmx {
+                base_path,
                 header,
                 vertices,
                 surfaces,
@@ -341,6 +346,10 @@ impl Pmx {
 
     pub fn soft_bodies(&self) -> Option<&SoftBodies> {
         self.soft_bodies.as_ref()
+    }
+
+    pub fn base_path(&self) -> &PathBuf {
+        &self.base_path
     }
 }
 
